@@ -23,11 +23,21 @@ public class Room {
 		//assigns random Color for Users
 		boolean rdm = ((int) (Math.random()*2) == 1)?true:false;
 		
+		/*
+		 * 99: Code for new Game
+		 * First 1/0:
+		 * 		1: you start
+		 * 		0: other person starts
+		 * Second 1/0:
+		 * 		1: youre Black
+		 * 		0: youre White
+		 * 
+		 * */
 		if(startUser) {
 			c1.sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
 			c2.sendData(new DataPackage(99, "0" + ((rdm)?0:1)));
 		} else {
-			c1.sendData(new DataPackage(99, "1" + ((rdm)?0:1)));
+			c1.sendData(new DataPackage(99, "0" + ((rdm)?0:1)));
 			c2.sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
 		}
 		
@@ -79,7 +89,7 @@ public class Room {
 
 				DataPackage dp = (DataPackage) o;
 				
-				if(dp.getStatus() <= 9) {
+				if(dp.getStatus() <= 6) {
 					
 					c1.sendData(o);
 					activeUser = !activeUser;
