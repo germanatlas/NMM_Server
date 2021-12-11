@@ -1,0 +1,99 @@
+package main.online;
+
+import java.util.Random;
+
+public class Room {
+	
+	private ClientManager	c1,
+							c2;
+	private Random random;
+	private boolean	startUser,
+					activeUser;
+	
+	public Room(ClientManager c1, ClientManager c2) {
+		
+		this.c1 = c1;
+		this.c2 = c2;
+		this.random = new Random();
+		
+		//Chooses random User to start
+		this.startUser = random.nextBoolean();
+		activeUser = startUser;
+		
+		//assigns random Color for Users
+		boolean rdm = ((int) (Math.random()*2) == 1)?true:false;
+		
+		if(startUser) {
+			c1.sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
+			c2.sendData(new DataPackage(99, "0" + ((rdm)?0:1)));
+		} else {
+			c1.sendData(new DataPackage(99, "1" + ((rdm)?0:1)));
+			c2.sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
+		}
+		
+	}
+	
+	/*
+	 * status:
+	 * 0 - active game - placing
+	 * 1 - active game
+	 * 2 - draw
+	 * 3 - white won
+	 * 4 - black won
+	 * 5 - white has mill
+	 * 6 - black has mill
+	 * 99 - game start
+	 * 
+	 * */
+
+	public void tick() {
+		
+		if(activeUser) {
+			
+			Object o = c1.receiveData();
+			
+			if(!o.equals(null)) {
+				
+				DataPackage dp = (DataPackage) o;
+				
+				if(dp.getStatus() <= 4) {
+					
+					c2.sendData(o);
+					activeUser = !activeUser;
+					
+				} else {
+					
+					c2.sendData(o);
+					
+				}
+				
+			}
+			
+			
+			
+		} else {
+			
+			Object o = c2.receiveData();
+			
+			if(!o.equals(null)) {
+
+				DataPackage dp = (DataPackage) o;
+				
+				if(dp.getStatus() <= 9) {
+					
+					c1.sendData(o);
+					activeUser = !activeUser;
+					
+				} else {
+					
+					c1.sendData(o);
+					
+				}
+				
+			}
+			
+		}
+		
+	}
+
+}
