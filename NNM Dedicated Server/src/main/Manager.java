@@ -6,10 +6,10 @@ import main.online.Server;
 
 public class Manager {
 	
-	private static final int	TPS = 10,
+	private final int	TPS = 60,
 								MAXUSERS = 2,
 								MAXROOMS = MAXUSERS / 2;
-	private static final long TIMEPERTICK = 1000000000 / TPS;
+	private final long TIMEPERTICK = 1000000000 / TPS;
 	private int[][] usersInRooms = new int[MAXROOMS][2];
 	private boolean[]	usedUsers = new boolean[MAXUSERS],
 						isInRoom = new boolean[MAXUSERS],
@@ -26,19 +26,34 @@ public class Manager {
 		
 		initiateUIR();
 		
-		Thread clientWait = new Thread(waitForClient());
-		clientWait.start();
+		new Thread(() -> {
+			
+			while(active) {
+				
+				int i = findLowestFree(usedUsers);
+				if(i == usedUsers.length + 1)
+					continue;
+
+				client[i] = new ClientManager(this);
+				usedUsers[i] = true;
+				
+			}
+			
+		}).start();
 
 		double delta = 0;
-		long now, lastTime = System.nanoTime();
+		double now, lastTime = System.nanoTime();
 		
 		while(true) {
 			now = System.nanoTime();
 			delta += (now - lastTime) / TIMEPERTICK;
 			lastTime = now;
+			//System.out.println("\tTest" + delta);
 			
 			if(delta >= 1) {
+				//System.out.println("tick " + i++);
 				tick();
+				//System.out.println("tack " + delta);
 				delta--;
 			} 
 
@@ -56,22 +71,6 @@ public class Manager {
 			usersInRooms[i][1] = -1;
 			
 		}
-		
-	}
-
-	private Runnable waitForClient() {
-		
-		while(active) {
-			
-			int i = findLowestFree(usedUsers);
-			if(i == usedUsers.length + 1)
-				continue;
-
-			client[i] = new ClientManager(this);
-			usedUsers[i] = true;
-			
-		}
-		return null;
 		
 	}
 
@@ -93,7 +92,6 @@ public class Manager {
 	private void tick() {
 		
 		checkInactiveClients();
-		
 		if((usedUsers[0] && usedUsers[1]) && (!isInRoom[0] && !isInRoom[1])) {
 			
 			int rID = findLowestFree(usedRooms);
@@ -102,6 +100,7 @@ public class Manager {
 			isInRoom[1] = true;
 			usersInRooms[rID][0] = 0;
 			usersInRooms[rID][0] = 1;
+			usedRooms[rID] = true;
 			
 		}
 		
@@ -155,6 +154,7 @@ public class Manager {
 
 		usedUsers[i] = false;
 		client[i] = null;
+		System.out.println("Client " + i + " disconnected.");
 		
 	}
 

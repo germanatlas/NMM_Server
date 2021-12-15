@@ -12,6 +12,7 @@ public class Room {
 	
 	public Room(ClientManager c1, ClientManager c2) {
 		
+		System.out.println("Init Room");
 		this.c1 = c1;
 		this.c2 = c2;
 		this.random = new Random();
@@ -21,7 +22,7 @@ public class Room {
 		activeUser = startUser;
 		
 		//assigns random Color for Users
-		boolean rdm = ((int) (Math.random()*2) == 1)?true:false;
+		boolean rdm = random.nextBoolean();
 		
 		/*
 		 * 99: Code for new Game
@@ -58,11 +59,13 @@ public class Room {
 
 	public void tick() {
 		
+		System.out.println("tick");
+		
 		if(activeUser) {
 			
 			Object o = c1.receiveData();
 			
-			if(!o.equals(null)) {
+			if(o != null) {
 				
 				DataPackage dp = (DataPackage) o;
 				
@@ -85,7 +88,7 @@ public class Room {
 			
 			Object o = c2.receiveData();
 			
-			if(!o.equals(null)) {
+			if(o != null) {
 
 				DataPackage dp = (DataPackage) o;
 				

@@ -1,7 +1,13 @@
 package main.online;
 
-public class DataPackage {
+import java.io.Serializable;
+
+public class DataPackage implements Serializable{
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private int status;
 	private String move;
 	

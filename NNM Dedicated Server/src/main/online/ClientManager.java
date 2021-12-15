@@ -13,7 +13,7 @@ import main.Manager;
 
 public class ClientManager {
 	
-	private static final int TIMEOUT = 10000;
+	private static final int TIMEOUT = 1000;
 	private Server server;
 	private Socket socket;
 	private BufferedInputStream in;
@@ -69,7 +69,7 @@ public class ClientManager {
 			
 			return true;
 		} catch (IOException e) {
-			System.out.println("An Error occured while sending data to client.");
+			System.out.println("An Error occured while sending data to client." + e);
 			return false;
 		}
 		
