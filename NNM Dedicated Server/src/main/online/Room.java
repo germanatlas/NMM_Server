@@ -14,7 +14,6 @@ public class Room {
 	
 	public Room(ClientManager c1, ClientManager c2) {
 		
-		System.out.println("Init Room");
 		this.c1 = c1;
 		this.c2 = c2;
 		this.random = new Random();
@@ -116,6 +115,12 @@ public class Room {
 			t.start();
 			
 		}
+		
+	}
+	
+	public Thread getComThread() {
+		
+		return t;
 		
 	}
 

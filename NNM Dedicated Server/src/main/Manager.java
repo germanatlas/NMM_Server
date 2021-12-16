@@ -1,5 +1,7 @@
 package main;
 
+import java.time.LocalTime;
+
 import main.online.ClientManager;
 import main.online.Room;
 import main.online.Server;
@@ -39,10 +41,13 @@ public class Manager {
 				int i = findLowestFree(usedUsers);
 				if(i == usedUsers.length + 1)
 					continue;
-
 				client[i] = new ClientManager(this);
 				usedUsers[i] = true;
 				totalUsers++;
+				print(	"Connected Clients:\t" + 	totalUsers +
+						"\n\t\tFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
+						"\n\t\tUsed Rooms:\t\t" + 		totalRooms + 
+						"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
 				
 			}
 			
@@ -55,11 +60,10 @@ public class Manager {
 			now = System.nanoTime();
 			delta += (now - lastTime) / TIMEPERTICK;
 			lastTime = now;
-			//System.out.println("\tTest" + delta);
+			//print("\tTest" + delta);
 			
 			if(delta >= 1) {
 				tick();
-				c++;
 				delta--;
 			} 
 
@@ -101,6 +105,7 @@ public class Manager {
 		if((usedUsers[0] && usedUsers[1]) && (!isInRoom[0] && !isInRoom[1])) {
 			
 			int rID = findLowestFree(usedRooms);
+			print("Init Room");
 			room[rID] = new Room(client[0], client[1]);
 			isInRoom[0] = true;
 			isInRoom[1] = true;
@@ -112,17 +117,6 @@ public class Manager {
 		}
 		
 		tickAllRooms();
-		
-		if(c >= TPS * 10) {
-			
-			System.out.println(	"Connected Clients:\t" + 	totalUsers +
-								"\nFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
-								"\nUsed Rooms:\t\t" + 		totalRooms + 
-								"\nFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
-			
-			c = 0;
-		}
-		
 		
 	}
 
@@ -154,10 +148,13 @@ public class Manager {
 					if(rID >= 0) {
 						
 						closeRoom(rID);
-						usersInRooms[rID][0] = -1;
-						usersInRooms[rID][1] = -1;
 						
 					}
+					
+					print(	"Connected Clients:\t" + 	totalUsers +
+							"\n\t\tFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
+							"\n\t\tUsed Rooms:\t\t" + 		totalRooms + 
+							"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
 					
 				}
 				
@@ -172,7 +169,7 @@ public class Manager {
 		usedUsers[i] = false;
 		client[i] = null;
 		totalUsers--;
-		System.out.println("Client " + i + " disconnected.");
+		print("Client " + i + " disconnected.");
 		
 	}
 
@@ -180,6 +177,12 @@ public class Manager {
 
 		totalRooms--;
 		usedRooms[rID] = false;
+		if(room[rID].getComThread().isAlive())
+			try {
+				room[rID].getComThread().join();
+			} catch (InterruptedException e) {
+				print("Couldnt close Communication Thread of Room " + rID);
+			}
 		room[rID] = null;
 		
 	}
@@ -197,6 +200,12 @@ public class Manager {
 		}
 		
 		return -1;
+	}
+	
+	public void print(String msg) {
+		
+		System.out.println("[" + LocalTime.now().getHour() + ":" + LocalTime.now().getMinute() + ":" + LocalTime.now().getSecond() + "]\t" + msg);
+		
 	}
 
 	public Server getServer() {

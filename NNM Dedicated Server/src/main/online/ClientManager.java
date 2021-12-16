@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.time.LocalTime;
 
 import main.Manager;
 
@@ -24,14 +25,14 @@ public class ClientManager {
 		active = false;
 		this.server = man.getServer();
 		this.socket = server.allowUser();
-		System.out.println("Starting Streams...");
+		print("Starting Streams...");
 		try {
 			in = new BufferedInputStream(socket.getInputStream());
 			out = new BufferedOutputStream(socket.getOutputStream());
 			active = true;
-			System.out.println("Finished creating Socket");
+			print("Finished creating Socket");
 		} catch (IOException e) {
-			System.out.println("An Error occured while creating streams...");
+			print("An Error occured while creating streams...");
 		}
 		
 		
@@ -47,7 +48,7 @@ public class ClientManager {
 				if(count < 0) {
 					return null;
 				}
-				System.out.println(count + " Bytes Received.");
+				print(count + " Bytes Received.");
 				
 				byte[] pack = new byte[count];
 				pack = shorten(buffer, count);
@@ -55,7 +56,7 @@ public class ClientManager {
 				
 				return obj;
 			} catch (IOException | ClassNotFoundException e) {
-				System.out.println("An Error occured while receiving data from client. Closing Client.");
+				print("An Error occured while receiving data from client. Closing Client.");
 				active = false;
 				close();
 				return null;
@@ -75,11 +76,11 @@ public class ClientManager {
 				byte[] bytes = toBytes(data);
 				out.write(bytes);
 				out.flush();
-				System.out.println(bytes.length + " Bytes Sent.");
+				print(bytes.length + " Bytes Sent.");
 				
 				return true;
 			} catch (IOException e) {
-				System.out.println("An Error occured while sending data to client. Closing Client.");
+				print("An Error occured while sending data to client. Closing Client.");
 				active = false;
 				close();
 				return false;
@@ -137,8 +138,14 @@ public class ClientManager {
 			socket.close();
 			active = false;
 		} catch (IOException e) {
-			System.out.println("An Error occured while closing the Socket to Client.");
+			print("An Error occured while closing the Socket to Client.");
 		}
+		
+	}
+	
+	public void print(String msg) {
+		
+		System.out.println("[" + LocalTime.now().getHour() + ":" + LocalTime.now().getMinute() + ":" + LocalTime.now().getSecond() + "]\t" + msg);
 		
 	}
 
@@ -157,5 +164,7 @@ public class ClientManager {
 	public boolean getIfActive() {
 		return !socket.isClosed() && active;
 	}
+	
+	
 
 }
