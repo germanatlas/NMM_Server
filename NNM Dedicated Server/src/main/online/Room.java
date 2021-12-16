@@ -111,7 +111,7 @@ public class Room {
 
 	public void tick() {
 		
-		if(!t.isAlive()) {
+		if(!t.isAlive() && c1.getIfActive() && c2.getIfActive()) {
 			
 			t.start();
 			
