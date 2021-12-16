@@ -13,8 +13,7 @@ public class Manager {
 						MAXROOMS = MAXUSERS / 2;
 	private final long TIMEPERTICK = 1000000000 / TPS;
 	
-	private int	c = 0,
-				totalUsers = 0,
+	private int	totalUsers = 0,
 				totalRooms = 0;
 	private int[][] usersInRooms = new int[MAXROOMS][2];
 	
@@ -44,7 +43,7 @@ public class Manager {
 				client[i] = new ClientManager(this);
 				usedUsers[i] = true;
 				totalUsers++;
-				print(	"Connected Clients:\t" + 	totalUsers +
+				print(	"Connected Clients:\t" + 		totalUsers +
 						"\n\t\tFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
 						"\n\t\tUsed Rooms:\t\t" + 		totalRooms + 
 						"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
@@ -151,7 +150,7 @@ public class Manager {
 						
 					}
 					
-					print(	"Connected Clients:\t" + 	totalUsers +
+					print(	"Connected Clients:\t" + 		totalUsers +
 							"\n\t\tFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
 							"\n\t\tUsed Rooms:\t\t" + 		totalRooms + 
 							"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
