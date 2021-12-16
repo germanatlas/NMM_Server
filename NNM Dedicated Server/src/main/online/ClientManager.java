@@ -13,20 +13,22 @@ import main.Manager;
 
 public class ClientManager {
 	
-	private static final int TIMEOUT = 1000;
 	private Server server;
 	private Socket socket;
 	private BufferedInputStream in;
 	private BufferedOutputStream out;
+	private boolean active;
 	
 	public ClientManager(Manager man) {
 		
+		active = false;
 		this.server = man.getServer();
 		this.socket = server.allowUser();
 		System.out.println("Starting Streams...");
 		try {
 			in = new BufferedInputStream(socket.getInputStream());
 			out = new BufferedOutputStream(socket.getOutputStream());
+			active = true;
 			System.out.println("Finished creating Socket");
 		} catch (IOException e) {
 			System.out.println("An Error occured while creating streams...");
@@ -37,41 +39,55 @@ public class ClientManager {
 	
 	public Object receiveData() {
 		
-		try {
-			byte[] buffer = new byte[2048];
-			int count = in.read(buffer);
-			if(count < 0) {
+		if(!socket.isClosed() && active) {
+			
+			try {
+				byte[] buffer = new byte[2048];
+				int count = in.read(buffer);
+				if(count < 0) {
+					return null;
+				}
+				System.out.println(count + " Bytes Received.");
+				
+				byte[] pack = new byte[count];
+				pack = shorten(buffer, count);
+				Object obj = toObject(pack);
+				
+				return obj;
+			} catch (IOException | ClassNotFoundException e) {
+				System.out.println("An Error occured while receiving data from client. Closing Client.");
+				active = false;
+				close();
 				return null;
 			}
-			System.out.println(count + " Bytes Received.");
 			
-			byte[] pack = new byte[count];
-			pack = shorten(buffer, count);
-			Object obj = toObject(pack);
-			//TODO
-			
-			return obj;
-		} catch (IOException | ClassNotFoundException e) {
-			System.out.println("An Error occured while receiving data from client.");
-			return null;
 		}
+		
+		return null;
 		
 	}
 	
 	public boolean sendData(Object data) {
-		//TODO
 		
-		try {
-			byte[] bytes = toBytes(data);
-			out.write(bytes);
-			out.flush();
-			System.out.println(bytes.length + " Bytes Sent.");
+		if(!socket.isClosed() && active) {
 			
-			return true;
-		} catch (IOException e) {
-			System.out.println("An Error occured while sending data to client." + e);
-			return false;
+			try {
+				byte[] bytes = toBytes(data);
+				out.write(bytes);
+				out.flush();
+				System.out.println(bytes.length + " Bytes Sent.");
+				
+				return true;
+			} catch (IOException e) {
+				System.out.println("An Error occured while sending data to client. Closing Client.");
+				active = false;
+				close();
+				return false;
+			}
+			
 		}
+		
+		return false;
 		
 	}
 	
@@ -119,6 +135,7 @@ public class ClientManager {
 		
 		try {
 			socket.close();
+			active = false;
 		} catch (IOException e) {
 			System.out.println("An Error occured while closing the Socket to Client.");
 		}
@@ -138,11 +155,7 @@ public class ClientManager {
 	}
 	
 	public boolean getIfActive() {
-		try {
-			return !socket.isClosed() || socket.getInetAddress().isReachable(TIMEOUT);
-		} catch (IOException e) {
-			return false;
-		}
+		return !socket.isClosed() && active;
 	}
 
 }

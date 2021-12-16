@@ -10,6 +10,8 @@ public class Room {
 	private boolean	startUser,
 					activeUser;
 	
+	private Thread t;
+	
 	public Room(ClientManager c1, ClientManager c2) {
 		
 		System.out.println("Init Room");
@@ -42,6 +44,56 @@ public class Room {
 			c2.sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
 		}
 		
+		t = new Thread(() -> {
+			
+			if(activeUser) {
+				
+				Object o = c1.receiveData();
+				
+				if(o != null) {
+					
+					DataPackage dp = (DataPackage) o;
+					
+					if(dp.getStatus() <= 4) {
+						
+						c2.sendData(o);
+						activeUser = !activeUser;
+						
+					} else {
+						
+						c2.sendData(o);
+						
+					}
+					
+				}
+				
+				
+				
+			} else {
+				
+				Object o = c2.receiveData();
+				
+				if(o != null) {
+
+					DataPackage dp = (DataPackage) o;
+					
+					if(dp.getStatus() <= 6) {
+						
+						c1.sendData(o);
+						activeUser = !activeUser;
+						
+					} else {
+						
+						c1.sendData(o);
+						
+					}
+					
+				}
+				
+			}
+			
+		});
+		
 	}
 	
 	/*
@@ -59,51 +111,9 @@ public class Room {
 
 	public void tick() {
 		
-		System.out.println("tick");
-		
-		if(activeUser) {
+		if(!t.isAlive()) {
 			
-			Object o = c1.receiveData();
-			
-			if(o != null) {
-				
-				DataPackage dp = (DataPackage) o;
-				
-				if(dp.getStatus() <= 4) {
-					
-					c2.sendData(o);
-					activeUser = !activeUser;
-					
-				} else {
-					
-					c2.sendData(o);
-					
-				}
-				
-			}
-			
-			
-			
-		} else {
-			
-			Object o = c2.receiveData();
-			
-			if(o != null) {
-
-				DataPackage dp = (DataPackage) o;
-				
-				if(dp.getStatus() <= 6) {
-					
-					c1.sendData(o);
-					activeUser = !activeUser;
-					
-				} else {
-					
-					c1.sendData(o);
-					
-				}
-				
-			}
+			t.start();
 			
 		}
 		

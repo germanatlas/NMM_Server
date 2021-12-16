@@ -7,14 +7,20 @@ import main.online.Server;
 public class Manager {
 	
 	private final int	TPS = 60,
-								MAXUSERS = 2,
-								MAXROOMS = MAXUSERS / 2;
+						MAXUSERS = 2,
+						MAXROOMS = MAXUSERS / 2;
 	private final long TIMEPERTICK = 1000000000 / TPS;
+	
+	private int	c = 0,
+				totalUsers = 0,
+				totalRooms = 0;
 	private int[][] usersInRooms = new int[MAXROOMS][2];
+	
 	private boolean[]	usedUsers = new boolean[MAXUSERS],
 						isInRoom = new boolean[MAXUSERS],
 						usedRooms = new boolean[MAXROOMS];
 	private boolean active;
+	
 	private Server server;
 	private ClientManager[] client = new ClientManager[MAXUSERS];
 	private Room[] room = new Room[MAXROOMS];
@@ -36,6 +42,7 @@ public class Manager {
 
 				client[i] = new ClientManager(this);
 				usedUsers[i] = true;
+				totalUsers++;
 				
 			}
 			
@@ -51,9 +58,8 @@ public class Manager {
 			//System.out.println("\tTest" + delta);
 			
 			if(delta >= 1) {
-				//System.out.println("tick " + i++);
 				tick();
-				//System.out.println("tack " + delta);
+				c++;
 				delta--;
 			} 
 
@@ -101,10 +107,21 @@ public class Manager {
 			usersInRooms[rID][0] = 0;
 			usersInRooms[rID][0] = 1;
 			usedRooms[rID] = true;
+			totalRooms++;
 			
 		}
 		
 		tickAllRooms();
+		
+		if(c >= TPS * 10) {
+			
+			System.out.println(	"Connected Clients:\t" + 	totalUsers +
+								"\nFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
+								"\nUsed Rooms:\t\t" + 		totalRooms + 
+								"\nFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
+			
+			c = 0;
+		}
 		
 		
 	}
@@ -154,12 +171,14 @@ public class Manager {
 
 		usedUsers[i] = false;
 		client[i] = null;
+		totalUsers--;
 		System.out.println("Client " + i + " disconnected.");
 		
 	}
 
 	private void closeRoom(int rID) {
 
+		totalRooms--;
 		usedRooms[rID] = false;
 		room[rID] = null;
 		
