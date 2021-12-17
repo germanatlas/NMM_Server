@@ -45,51 +45,7 @@ public class Room {
 		
 		t = new Thread(() -> {
 			
-			if(activeUser) {
-				
-				Object o = c1.receiveData();
-				
-				if(o != null) {
-					
-					DataPackage dp = (DataPackage) o;
-					
-					if(dp.getStatus() <= 4) {
-						
-						c2.sendData(o);
-						activeUser = !activeUser;
-						
-					} else {
-						
-						c2.sendData(o);
-						
-					}
-					
-				}
-				
-				
-				
-			} else {
-				
-				Object o = c2.receiveData();
-				
-				if(o != null) {
-
-					DataPackage dp = (DataPackage) o;
-					
-					if(dp.getStatus() <= 6) {
-						
-						c1.sendData(o);
-						activeUser = !activeUser;
-						
-					} else {
-						
-						c1.sendData(o);
-						
-					}
-					
-				}
-				
-			}
+			
 			
 		});
 		
@@ -110,9 +66,49 @@ public class Room {
 
 	public void tick() {
 		
-		if(!t.isAlive() && c1.getIfActive() && c2.getIfActive()) {
+		if(activeUser) {
 			
-			t.start();
+			Object o = c1.receiveData();
+			
+			if(o != null) {
+				
+				DataPackage dp = (DataPackage) o;
+				
+				if(dp.getStatus() <= 4) {
+					
+					c2.sendData(o);
+					activeUser = !activeUser;
+					
+				} else {
+					
+					c2.sendData(o);
+					
+				}
+				
+			}
+			
+			
+			
+		} else {
+			
+			Object o = c2.receiveData();
+			
+			if(o != null) {
+
+				DataPackage dp = (DataPackage) o;
+				
+				if(dp.getStatus() <= 6) {
+					
+					c1.sendData(o);
+					activeUser = !activeUser;
+					
+				} else {
+					
+					c1.sendData(o);
+					
+				}
+				
+			}
 			
 		}
 		
