@@ -3,6 +3,7 @@ package main;
 import java.time.LocalTime;
 
 import main.online.ClientManager;
+import main.online.DataPackage;
 import main.online.Room;
 import main.online.Server;
 
@@ -33,6 +34,7 @@ public class Manager {
 		
 		initiateUIR();
 		
+		//Connects new Clients when there's open places
 		new Thread(() -> {
 			
 			while(active) {
@@ -115,22 +117,6 @@ public class Manager {
 			
 		}
 		
-		tickAllRooms();
-		
-	}
-
-	private void tickAllRooms() {
-		
-		for(int i = 0; i < MAXROOMS; i++) {
-			
-			if(usedRooms[i]) {
-				
-				room[i].tick();
-				
-			}
-			
-		}
-		
 	}
 
 	private void checkInactiveClients() {
@@ -141,12 +127,16 @@ public class Manager {
 				
 				if(!client[i].getIfActive()) {
 					
-					closeClient(i);
-					
 					int rID = checkIfInRoom(i);
 					if(rID >= 0) {
 						
+						//Closes both clients in a room
 						closeRoom(rID);
+						
+					} else {
+						
+						//Closes just this client
+						closeClient(i);
 						
 					}
 					
@@ -154,6 +144,7 @@ public class Manager {
 							"\n\t\tFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
 							"\n\t\tUsed Rooms:\t\t" + 		totalRooms + 
 							"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
+					
 					
 				}
 				
@@ -165,7 +156,9 @@ public class Manager {
 
 	private void closeClient(int i) {
 
+		client[i].sendData(new DataPackage(98, ""));
 		usedUsers[i] = false;
+		client[i].close();
 		client[i] = null;
 		totalUsers--;
 		print("Client " + i + " disconnected.");
@@ -182,6 +175,9 @@ public class Manager {
 			} catch (InterruptedException e) {
 				print("Couldnt close Communication Thread of Room " + rID);
 			}
+	
+		closeClient(usersInRooms[rID][0]);
+		closeClient(usersInRooms[rID][1]);
 		room[rID] = null;
 		
 	}
