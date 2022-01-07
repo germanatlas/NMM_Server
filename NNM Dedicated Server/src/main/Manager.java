@@ -1,38 +1,45 @@
 package main;
 
 import java.time.LocalTime;
+import java.util.Random;
 
 import main.online.ClientManager;
 import main.online.DataPackage;
-import main.online.Room;
 import main.online.Server;
 
 public class Manager {
 	
 	private final int	TPS = 60,
-						MAXUSERS = 2,
-						MAXROOMS = MAXUSERS / 2;
+						MAXUSERS = 2;
+						//MAXROOMS = MAXUSERS / 2;
 	private final long TIMEPERTICK = 1000000000 / TPS;
 	
-	private int	totalUsers = 0,
-				totalRooms = 0;
-	private int[][] usersInRooms = new int[MAXROOMS][2];
+	private int	totalUsers = 0;
+	//			totalRooms = 0;
+	//private int[][] usersInRooms = new int[MAXROOMS][2];
 	
-	private boolean[]	usedUsers = new boolean[MAXUSERS],
-						isInRoom = new boolean[MAXUSERS],
-						usedRooms = new boolean[MAXROOMS];
-	private boolean active;
+	private boolean[]	usedUsers = new boolean[MAXUSERS];
+						//isInRoom = new boolean[MAXUSERS],
+						//usedRooms = new boolean[MAXROOMS];
+	private boolean active,
+					activeUser,
+					running;
+
+	private Random random;
 	
 	private Server server;
 	private ClientManager[] client = new ClientManager[MAXUSERS];
-	private Room[] room = new Room[MAXROOMS];
+	//private Room[] room = new Room[MAXROOMS];
+	
+	private Thread t;
 	
 	public Manager() {
 		
 		server = new Server();
 		active = true;
+		running = false;
 		
-		initiateUIR();
+		//initiateUIR();
 		
 		//Connects new Clients when there's open places
 		new Thread(() -> {
@@ -45,10 +52,10 @@ public class Manager {
 				client[i] = new ClientManager(this);
 				usedUsers[i] = true;
 				totalUsers++;
-				print(	"Connected Clients:\t" + 		totalUsers +
+				/*print(	"Connected Clients:\t" + 		totalUsers +
 						"\n\t\tFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
-						"\n\t\tUsed Rooms:\t\t" + 		totalRooms + 
-						"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
+						"\n\t\tUsed Rooms:\t\t" + 		totalRooms) + 
+						"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));*/
 				
 			}
 			
@@ -74,7 +81,7 @@ public class Manager {
 		
 	}
 	
-	private void initiateUIR() {
+	/*private void initiateUIR() {
 		
 		for(int i = 0; i < usersInRooms.length; i++) {
 			
@@ -83,11 +90,10 @@ public class Manager {
 			
 		}
 		
-	}
+	}*/
 
 	private int findLowestFree(boolean[] list) {
 		
-		int nofree = list.length + 1;
 		for(int i = 0; (i < list.length); i++) {
 			
 			if(!list[i]) {
@@ -97,15 +103,15 @@ public class Manager {
 			}
 			
 		}
-		return nofree;
+		return list.length + 1;
 	}
 
 	private void tick() {
 		
 		checkInactiveClients();
-		if((usedUsers[0] && usedUsers[1]) && (!isInRoom[0] && !isInRoom[1])) {
+		if((usedUsers[0] && usedUsers[1])/* && (!isInRoom[0] && !isInRoom[1])*/) {
 			
-			int rID = findLowestFree(usedRooms);
+			/*int rID = findLowestFree(usedRooms);
 			print("Init Room");
 			room[rID] = new Room(client[0], client[1]);
 			isInRoom[0] = true;
@@ -113,9 +119,101 @@ public class Manager {
 			usersInRooms[rID][0] = 0;
 			usersInRooms[rID][0] = 1;
 			usedRooms[rID] = true;
-			totalRooms++;
+			totalRooms++;*/
+
+			
+			
+			if(!running) {
+
+				t = new Thread(gameLoop());
+				//t.run();
+				
+			}
+		
+		
+		}
+	}
+		
+	private Runnable gameLoop() {
+		
+		running = true;
+		
+		//Chooses random User to start
+		random = new Random();
+		activeUser = random.nextBoolean();
+		
+		//assigns random Color for Users
+		boolean rdm = random.nextBoolean();
+		
+		/*
+		 * 99: Code for new Game
+		 * First 1/0:
+		 * 		1: you start
+		 * 		0: other person starts
+		 * Second 1/0:
+		 * 		1: youre Black
+		 * 		0: youre White
+		 * 
+		 * */
+		if(activeUser) {
+			client[0].sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
+			client[1].sendData(new DataPackage(99, "0" + ((rdm)?0:1)));
+		} else {
+			client[0].sendData(new DataPackage(99, "0" + ((rdm)?0:1)));
+			client[1].sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
+		}
+		
+		
+		while(client[0].getIfActive() && client[1].getIfActive()) {
+			
+			
+			if(activeUser) {
+				
+				Object o = client[0].receiveData();
+				
+				if(o != null) {
+					
+					DataPackage dp = (DataPackage) o;
+					
+					if(dp.getStatus() <= 4) {
+						
+						client[1].sendData(o);
+						activeUser = !activeUser;
+						
+					} else {
+						
+						client[1].sendData(o);
+						
+					}
+					
+				}
+				
+			} else {
+				
+				Object o = client[1].receiveData();
+				
+				if(o != null) {
+
+					DataPackage dp = (DataPackage) o;
+					
+					if(dp.getStatus() <= 6) {
+						
+						client[0].sendData(o);
+						activeUser = !activeUser;
+						
+					} else {
+						
+						client[0].sendData(o);
+						
+					}
+					
+				}
+				
+			}
 			
 		}
+		
+		return t;
 		
 	}
 
@@ -127,24 +225,8 @@ public class Manager {
 				
 				if(!client[i].getIfActive()) {
 					
-					int rID = checkIfInRoom(i);
-					if(rID >= 0) {
-						
-						//Closes both clients in a room
-						closeRoom(rID);
-						
-					} else {
-						
-						//Closes just this client
-						closeClient(i);
-						
-					}
-					
-					print(	"Connected Clients:\t" + 		totalUsers +
-							"\n\t\tFree Client Spots:\t" + 	(MAXUSERS - totalUsers) +
-							"\n\t\tUsed Rooms:\t\t" + 		totalRooms + 
-							"\n\t\tFree Rooms:\t\t" + 		(MAXROOMS - totalRooms));
-					
+					closeClient(0);
+					closeClient(1);
 					
 				}
 				
@@ -165,7 +247,7 @@ public class Manager {
 		
 	}
 
-	private void closeRoom(int rID) {
+	/*private void closeRoom(int rID) {
 
 		totalRooms--;
 		usedRooms[rID] = false;
@@ -180,9 +262,9 @@ public class Manager {
 		closeClient(usersInRooms[rID][1]);
 		room[rID] = null;
 		
-	}
+	}*/
 
-	private int checkIfInRoom(int i) {
+	/*private int checkIfInRoom(int i) {
 		
 		for (int rID = 0; rID < usersInRooms.length; rID++) {
 			
@@ -195,7 +277,7 @@ public class Manager {
 		}
 		
 		return -1;
-	}
+	}*/
 	
 	public void print(String msg) {
 		

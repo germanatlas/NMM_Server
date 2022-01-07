@@ -20,6 +20,7 @@ public class DataPackage implements Serializable{
 	 * 4 - black won
 	 * 5 - white has mill
 	 * 6 - black has mill
+	 * 98 - ended game
 	 * 99 - game start
 	 * 
 	 * */
