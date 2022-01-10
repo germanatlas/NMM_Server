@@ -22,7 +22,6 @@ public class Manager {
 						//isInRoom = new boolean[MAXUSERS],
 						//usedRooms = new boolean[MAXROOMS];
 	private boolean active,
-					activeUser,
 					running;
 
 	private Random random;
@@ -140,7 +139,7 @@ public class Manager {
 		
 		//Chooses random User to start
 		random = new Random();
-		activeUser = random.nextBoolean();
+		boolean activeUser = random.nextBoolean();
 		
 		//assigns random Color for Users
 		boolean rdm = random.nextBoolean();
@@ -159,8 +158,8 @@ public class Manager {
 			client[0].sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
 			client[1].sendData(new DataPackage(99, "0" + ((rdm)?0:1)));
 		} else {
-			client[0].sendData(new DataPackage(99, "0" + ((rdm)?0:1)));
-			client[1].sendData(new DataPackage(99, "1" + ((rdm)?1:0)));
+			client[0].sendData(new DataPackage(99, "0" + ((rdm)?1:0)));
+			client[1].sendData(new DataPackage(99, "1" + ((rdm)?0:1)));
 		}
 		
 		
@@ -175,14 +174,14 @@ public class Manager {
 					
 					DataPackage dp = (DataPackage) o;
 					
-					if(dp.getStatus() <= 4) {
+					if(dp.getStatus() == 5) {
 						
 						client[1].sendData(o);
-						activeUser = !activeUser;
 						
 					} else {
 						
 						client[1].sendData(o);
+						activeUser = !activeUser;
 						
 					}
 					
@@ -195,15 +194,14 @@ public class Manager {
 				if(o != null) {
 
 					DataPackage dp = (DataPackage) o;
-					
-					if(dp.getStatus() <= 6) {
+					if(dp.getStatus() == 5) {
 						
 						client[0].sendData(o);
-						activeUser = !activeUser;
 						
 					} else {
 						
 						client[0].sendData(o);
+						activeUser = !activeUser;
 						
 					}
 					
@@ -227,6 +225,7 @@ public class Manager {
 					
 					closeClient(0);
 					closeClient(1);
+					System.exit(0);
 					
 				}
 				
