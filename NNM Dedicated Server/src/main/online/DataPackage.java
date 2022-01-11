@@ -2,29 +2,24 @@ package main.online;
 
 import java.io.Serializable;
 
-public class DataPackage implements Serializable{
+public class DataPackage implements Serializable {
 	
-	private static final long serialVersionUID = 1L;
-	private int status;
-	private String move;
-	
-	/*
-	 * status:
-	 * 1 - active game
-	 * 2 - draw
-	 * 3 - white won
-	 * 4 - black won
-	 * 5 - mill
-	 * 6 - mill removal
-	 * 98 - ended game
-	 * 99 - game start
+	/**
 	 * 
-	 * */
+	 */
+	private static final long serialVersionUID = 1L;
+	private int status, fromX, fromY, toX, toY;
 	
-	public DataPackage(int status, String move) {
+	//Status is the same as server state enums
+	
+	public DataPackage(int status, int fromX, int fromY, int toX, int toY) {
 		
 		this.status = status;
-		this.move = move;
+		this.fromX = fromX;
+		this.toX = toX;
+		this.fromY = fromY;
+		this.toY = toY;
+		
 		
 	}
 	
@@ -32,8 +27,20 @@ public class DataPackage implements Serializable{
 		return status;	
 	}
 	
-	public String getmove() {
-		return move;
+	public int getToX() {
+		return toX;	
+	}
+	
+	public int getToY() {
+		return toY;	
+	}
+	
+	public int getFromX() {
+		return fromX;	
+	}
+	
+	public int getFromY() {
+		return fromY;	
 	}
 
 }

@@ -38,7 +38,7 @@ public class ClientManager {
 		
 	}
 	
-	public Object receiveData() {
+	public DataPackage receiveData() {
 		
 		if(!socket.isClosed() && active) {
 			
@@ -54,7 +54,7 @@ public class ClientManager {
 				pack = shorten(buffer, count);
 				Object obj = toObject(pack);
 				
-				return obj;
+				return (DataPackage) obj;
 			} catch (IOException | ClassNotFoundException e) {
 				print("An Error occured while receiving data from client. Closing Client.");
 				active = false;
@@ -68,15 +68,15 @@ public class ClientManager {
 		
 	}
 	
-	public boolean sendData(Object data) {
+	public boolean sendData(DataPackage dp) {
 		
 		if(!socket.isClosed() && active) {
 			
 			try {
-				byte[] bytes = toBytes(data);
+				byte[] bytes = toBytes(dp);
 				out.write(bytes);
 				out.flush();
-				print(bytes.length + " Bytes Sent.");
+				print(bytes.length + " Bytes Sent. " + dp.getStatus() + " " + dp.getFromX() + " " + dp.getFromY() + " " + dp.getToX() + " " + dp.getToY());
 				
 				return true;
 			} catch (IOException e) {
