@@ -40,7 +40,7 @@ public class ClientManager {
 	
 	public DataPackage receiveData() {
 		
-		if(!socket.isClosed() && active) {
+		if(getIfActive()) {
 			
 			try {
 				byte[] buffer = new byte[2048];
