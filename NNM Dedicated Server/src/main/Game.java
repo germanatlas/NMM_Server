@@ -108,6 +108,7 @@ public class Game {
 					
 				} else {
 
+					count++;
 					if(activeUser == lastMill) roundsWithoutMill++;
 					checkGameState();
 					c[(activeUser?0:1)].sendData(new DataPackage(State.ALLOWED.id, 0, 0, dp.getToX(), dp.getToY()));
