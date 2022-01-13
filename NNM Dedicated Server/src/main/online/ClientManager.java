@@ -19,9 +19,11 @@ public class ClientManager {
 	private BufferedInputStream in;
 	private BufferedOutputStream out;
 	private boolean active;
+	private Manager man;
 	
 	public ClientManager(Manager man) {
 		
+		this.man = man;
 		active = false;
 		this.server = man.getServer();
 		this.socket = server.allowUser();
@@ -48,7 +50,7 @@ public class ClientManager {
 				if(count < 0) {
 					return null;
 				}
-				print(count + " Bytes Received.");
+				//print(count + " Bytes Received.");
 				
 				byte[] pack = new byte[count];
 				pack = shorten(buffer, count);
@@ -56,9 +58,10 @@ public class ClientManager {
 				
 				return (DataPackage) obj;
 			} catch (IOException | ClassNotFoundException e) {
-				print("An Error occured while receiving data from client. Closing Client.");
+				//print("An Error occured while receiving data from client. Closing Client.");
 				active = false;
 				close();
+				man.setGameStatus(false);
 				return null;
 			}
 			
@@ -76,13 +79,14 @@ public class ClientManager {
 				byte[] bytes = toBytes(dp);
 				out.write(bytes);
 				out.flush();
-				print(bytes.length + " Bytes Sent. " + dp.getStatus() + " " + dp.getFromX() + " " + dp.getFromY() + " " + dp.getToX() + " " + dp.getToY());
+				//print(bytes.length + " Bytes Sent. " + dp.getStatus() + " " + dp.getFromX() + " " + dp.getFromY() + " " + dp.getToX() + " " + dp.getToY());
 				
 				return true;
 			} catch (IOException e) {
-				print("An Error occured while sending data to client. Closing Client.");
+				//print("An Error occured while sending data to client. Closing Client.");
 				active = false;
 				close();
+				man.setGameStatus(false);
 				return false;
 			}
 			
@@ -138,7 +142,7 @@ public class ClientManager {
 			socket.close();
 			active = false;
 		} catch (IOException e) {
-			print("An Error occured while closing the Socket to Client.");
+			//print("An Error occured while closing the Socket to Client.");
 		}
 		
 	}

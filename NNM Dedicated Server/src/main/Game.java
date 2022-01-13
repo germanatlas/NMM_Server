@@ -11,12 +11,6 @@ public class Game {
 	
 	/*
 	 * TODO
-	 * FIX JUMP
-	 * FIX PLACING MILL
-	 * CHECK END STATE
-	 * ASK FOR NEW GAME
-	 * LEAVING
-	 * 
 	 * 
 	 */
 	
@@ -24,7 +18,7 @@ public class Game {
 	private ClientManager c[] = new ClientManager[2];
 	private State STATE, tmpSTATE;
 	private Random rdm;
-	private DataPackage dp, dp2;
+	private DataPackage dp, dp2, dpdupe, dp2dupe;
 	
 	private int field[][];
 	private int pc[];
@@ -37,7 +31,7 @@ public class Game {
 	
 	private boolean color, activeUser,
 					lastMill,
-					waitForConfirmation;
+					newboard;
 	
 	
 	public Game(Manager manager) {
@@ -51,46 +45,49 @@ public class Game {
 
 	public void tick() {
 		
-		if(!waitForConfirmation) {
+		if(STATE != State.WIN) {
 			dp = c[(activeUser?0:1)].receiveData();
 		} else {
 			dp = c[0].receiveData();
 			dp2 = c[1].receiveData();
+			
+			if(dp != null) dpdupe = dp;
+			if(dp2 != null) dp2dupe = dp2;
 		}
 		
-		if(dp == null) {
+		if(dp == null && dpdupe == null) {
 			
-			if(waitForConfirmation) {
-				
-				if(dp2 == null) {
-					return;
-				}
-				
-			}
 			return;
 		}
 		
-		if(waitForConfirmation) {
+		if(STATE == State.WIN) {
 			
-			if(dp.getStatus() == 98 && dp2.getStatus() == 98) {
+			if(dp2dupe == null) {
+				return;
+			}
+			
+			if(dpdupe.getStatus() == 98 && dp2dupe.getStatus() == 98) {
 				
 				reset();
 				return;
 				
-			} else {
+			} else if(dpdupe.getStatus() == 99 || dp2dupe.getStatus() == 99) {
 				
 				c[0].sendData(new DataPackage(99, 0, 0, 0, 0));
 				c[1].sendData(new DataPackage(99, 0, 0, 0, 0));
+				STATE = State.END;
 				man.setGameStatus(false);
 				
 			}
+			return;
 			
 		}
 		
 		if(dp.getStatus() == 99) {
 			
-			c[(!activeUser?0:1)].sendData(new DataPackage(99, 0, 0, 0, 0));
+			STATE = State.END;
 			man.setGameStatus(false);
+			return;
 			
 		}
 		
@@ -108,14 +105,15 @@ public class Game {
 					c[(activeUser?0:1)].sendData(new DataPackage(State.YOUMILL.id, 0, 0, dp.getToX(), dp.getToY()));
 					c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYMILL.id, 0, 0, dp.getToX(), dp.getToY()));
 					
+					
 				} else {
 
-					count++; man.print(count + "");
 					if(activeUser == lastMill) roundsWithoutMill++;
 					checkGameState();
 					c[(activeUser?0:1)].sendData(new DataPackage(State.ALLOWED.id, 0, 0, dp.getToX(), dp.getToY()));
 					c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, 0, 0, dp.getToX(), dp.getToY()));
 					activeUser = !activeUser;
+					
 					
 				}
 				
@@ -123,6 +121,7 @@ public class Game {
 			} else {
 				
 				c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+				newboard = false;
 				
 			}
 			
@@ -145,6 +144,7 @@ public class Game {
 						c[(activeUser?0:1)].sendData(new DataPackage(State.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 						c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 						
+						
 					} else {
 
 						if(activeUser == lastMill) roundsWithoutMill++;
@@ -153,13 +153,20 @@ public class Game {
 						c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 						activeUser = !activeUser;
 						
+						
 					}
+					
+				} else {
+					
+					c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+					newboard = false;
 					
 				}
 				
 			} else {
 				
 				c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+				newboard = false;
 				
 			}
 			
@@ -169,9 +176,9 @@ public class Game {
 			
 			if(STATE == State.JUMPONE) {
 				
-				if(activeUser) {
+				if(activeUser) { // User with 3 Stones jumps
 					
-					if(	field[dp.getFromX()][dp.getFromY()] == ((activeUser!=color)?1:2) &&
+					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
 						field[dp.getToX()][dp.getToY()] == 0) {
 						
 						field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
@@ -183,6 +190,7 @@ public class Game {
 							STATE = State.MILL;
 							c[(activeUser?0:1)].sendData(new DataPackage(State.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 							c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+							
 								
 						} else {
 
@@ -191,16 +199,18 @@ public class Game {
 							c[(activeUser?0:1)].sendData(new DataPackage(State.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 							c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 							activeUser = !activeUser;
+							
 								
 						}
 					
 					} else {
 						
 						c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+						newboard = false;
 						
 					}
 						
-				} else {
+				} else { //Other user moves normally
 						
 					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
 						field[dp.getToX()][dp.getToY()] == 0) {
@@ -216,6 +226,7 @@ public class Game {
 								STATE = State.MILL;
 								c[(activeUser?0:1)].sendData(new DataPackage(State.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 								c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+								
 								
 							} else {
 
@@ -224,14 +235,21 @@ public class Game {
 								c[(activeUser?0:1)].sendData(new DataPackage(State.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 								c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 								activeUser = !activeUser;
+								
 									
 							}
 								
+						} else {
+							
+							c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+							newboard = false;
+							
 						}
 							
 					} else {
 							
 						c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+						newboard = false;
 							
 					}
 						
@@ -239,9 +257,9 @@ public class Game {
 				
 			} else if(STATE == State.JUMPTWO) {
 				
-				if(!activeUser) {
+				if(!activeUser) { //User with 3 Stones jumps
 					
-					if(	field[dp.getFromX()][dp.getFromY()] == ((activeUser==color)?1:2) &&
+					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
 						field[dp.getToX()][dp.getToY()] == 0) {
 						
 						field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
@@ -253,6 +271,7 @@ public class Game {
 							STATE = State.MILL;
 							c[(activeUser?0:1)].sendData(new DataPackage(State.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 							c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+							
 								
 						} else {
 
@@ -261,16 +280,18 @@ public class Game {
 							c[(activeUser?0:1)].sendData(new DataPackage(State.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 							c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 							activeUser = !activeUser;
+							
 								
 						}
 					
 					} else {
 						
 						c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+						newboard = false;
 						
 					}
 						
-				} else {
+				} else { // Other user moves normally
 						
 					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
 						field[dp.getToX()][dp.getToY()] == 0) {
@@ -287,26 +308,33 @@ public class Game {
 								c[(activeUser?0:1)].sendData(new DataPackage(State.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 								c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 								
+								
 							} else {
 								
 								checkGameState();
 								c[(activeUser?0:1)].sendData(new DataPackage(State.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 								c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 								activeUser = !activeUser;
+								
 									
 							}
 								
+						} else {
+							
+							c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+							newboard = false;
 						}
 							
 					} else {
-							
+
 						c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+						newboard = false;
 							
 					}
 						
 				}
 				
-			} else {
+			} else { // Both players are in Jump phase
 				
 				if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
 					field[dp.getToX()][dp.getToY()] == 0) {
@@ -320,18 +348,21 @@ public class Game {
 						STATE = State.MILL;
 						c[(activeUser?0:1)].sendData(new DataPackage(State.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 						c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+						
 								
 					} else {
 								
 						c[(activeUser?0:1)].sendData(new DataPackage(State.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 						c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 						activeUser = !activeUser;
+						
 								
 					}
 							
 				} else {
 							
 					c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
+					newboard = false;
 							
 				}
 				
@@ -353,6 +384,7 @@ public class Game {
 					c[(activeUser?0:1)].sendData(new DataPackage(State.MILL.id, 0, 0, dp.getToX(), dp.getToY()));
 					c[(!activeUser?0:1)].sendData(new DataPackage(State.MILL.id, 0, 0, dp.getToX(), dp.getToY()));
 					
+					
 				}
 				
 				count++;
@@ -362,18 +394,10 @@ public class Game {
 			} else {
 				
 				c[(activeUser?0:1)].sendData(new DataPackage(State.NOTALLOWED.id, 0, 0, 0, 0));
-				
+				newboard = false;
 			}
 			
 		}
-		
-		if(STATE == State.WIN) {
-			
-			waitForConfirmation = true;
-			
-		}
-		
-		System.out.println("A");
 		
 	}
 
@@ -395,8 +419,6 @@ public class Game {
 	}
 
 	private void checkForWin() {
-		
-		man.print(pc[(!activeUser?0:1)] + " " + pc[(activeUser?0:1)]);
 		
 		if(!checkForAllowedMoves()) {
 			
@@ -420,7 +442,7 @@ public class Game {
 
 	private boolean checkForAllowedMoves() {
 		
-		if(count < 17) {
+		if(count < 17 || (STATE.name().contains("JUMP") || STATE == State.MILL)) {
 			
 			return true;
 			
@@ -438,7 +460,7 @@ public class Game {
 						int x = n[a][0], y = n[a][1];
 						if(field[x][y] == 0) {
 							
-							if(field[i][j] == 1) {
+							if(field[i][j] == (activeUser?1:2)) {
 								f1 = true;
 							} else {
 								f2 = true;
@@ -456,12 +478,12 @@ public class Game {
 		if(f1 && f2) {
 			return true;
 		} else if(f1) {
-			c[(activeUser?0:1)].sendData(new DataPackage(State.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 			c[(!activeUser?0:1)].sendData(new DataPackage(State.NMYWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(State.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 			STATE = State.WIN;
 		}else if(f2) {
-			c[(!activeUser?0:1)].sendData(new DataPackage(State.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 			c[(activeUser?0:1)].sendData(new DataPackage(State.NMYWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(!activeUser?0:1)].sendData(new DataPackage(State.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
 			STATE = State.WIN;
 		}
 		
@@ -470,11 +492,16 @@ public class Game {
 
 	private void checkForStalemate() {
 		
-		if(checkForRepetition()) {
-			repetition++;
-		} else {
-			repetition = 0;
+		if(newboard && (STATE != State.MILL)) {
+			
+			if(checkForRepetition()) {
+				repetition++;
+			} else {
+				repetition = 0;
+			}
+			
 		}
+		newboard = true;
 		
 		if(roundsWithoutMill == 20) {
 			
@@ -518,6 +545,10 @@ public class Game {
 
 	//checks general game state
 	private void checkGameState() {
+		
+		if(STATE == State.WIN) {
+			return;
+		}
 		
 		if(STATE != State.MILL) {
 			
@@ -727,7 +758,6 @@ public class Game {
 		field = emptyField();
 		repetitiveField = new ArrayList<String>();
 		roundsWithoutMill = 0;
-		waitForConfirmation = false;
 		STATE = State.PLACE;
 		
 		

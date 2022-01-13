@@ -38,6 +38,9 @@ public class Manager {
 			while(playGame) {
 				tick();
 			}
+
+			client[0].sendData(new DataPackage(99, 0, 0, 0, 0));
+			client[1].sendData(new DataPackage(99, 0, 0, 0, 0));
 			
 		}
 		
@@ -47,41 +50,25 @@ public class Manager {
 	private void tick() {
 		
 		getInactiveClients();
-		game.tick();
+		if(playGame) game.tick();
 		
 	}
 	
 	private void getInactiveClients() {
 		
-		int activeCTheo = 0, activeCPract = 0;
-		for(int i = 0; i < client.length; i++) {
-			
-			if(clientActive[i]) {
-				
-				activeCTheo++;
-				try {
-					if(client[i].getSocket().getInetAddress().isReachable(TIMEOUT)) {
-						activeCPract++;
-					}
-				} catch (IOException e) { }
-				
-				
+		try {
+			if(	clientActive[0] && clientActive[1] &&
+				client[0].getSocket().getInetAddress().isReachable(TIMEOUT) &&
+				client[1].getSocket().getInetAddress().isReachable(TIMEOUT)) {
+				return;
 			}
-			
-		}
+		} catch (IOException e) { }
 		
-		if(activeCPract < activeCTheo) {
-			
-			client[0].sendData(new DataPackage(99, 0, 0, 0, 0));
-			client[1].sendData(new DataPackage(99, 0, 0, 0, 0));
-			client[0].close();
-			client[1].close();
-			clientActive[0] = false;
-			clientActive[1] = false;
-			playGame = false;
-			game = null;
-			
-		}
+		client[0].sendData(new DataPackage(99, 0, 0, 0, 0));
+		client[1].sendData(new DataPackage(99, 0, 0, 0, 0));
+		client[0].close(); clientActive[0] = false;
+		client[1].close(); clientActive[1] = false;
+		playGame = false;
 		
 	}
 	
@@ -101,6 +88,10 @@ public class Manager {
 	
 	public ClientManager getClient(int id) {
 		return client[id];
+	}
+	
+	public boolean[] getActiveClientList() {
+		return clientActive;
 	}
 
 }
