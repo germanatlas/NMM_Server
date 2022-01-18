@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.time.LocalTime;
 
 import main.Manager;
+import main.online.packs.DataPackage;
 
 public class ClientManager {
 	

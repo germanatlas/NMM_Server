@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import main.online.ClientManager;
-import main.online.DataPackage;
+import main.online.packs.DataPackage;
 import main.state.State;
 
 public class Game {

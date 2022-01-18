@@ -7,8 +7,8 @@ import java.util.Random;
 import javax.swing.plaf.basic.BasicInternalFrameTitlePane.TitlePaneLayout;
 
 import main.online.ClientManager;
-import main.online.DataPackage;
 import main.online.Server;
+import main.online.packs.DataPackage;
 
 public class Manager {
 	

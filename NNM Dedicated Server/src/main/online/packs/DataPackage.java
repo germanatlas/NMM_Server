@@ -1,4 +1,4 @@
-package main.online;
+package main.online.packs;
 
 import java.io.Serializable;
 
