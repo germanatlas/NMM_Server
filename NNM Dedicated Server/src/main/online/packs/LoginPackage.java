@@ -11,11 +11,13 @@ public class LoginPackage implements Serializable {
 	
 	private String username;
 	private int passHash;
+	private int newAccount;
 	
-	public LoginPackage(String username, int passHash) {
+	public LoginPackage(String username, int passHash, int newAccount) {
 		
 		this.username = username;
 		this.passHash = passHash;
+		this.newAccount = newAccount;
 		
 	}
 	
@@ -25,6 +27,10 @@ public class LoginPackage implements Serializable {
 	
 	public int getPassHash() {
 		return passHash;
+	}
+	
+	public int getIfNewAccount() {
+		return newAccount;
 	}
 
 }

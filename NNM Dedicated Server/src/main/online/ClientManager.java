@@ -20,6 +20,7 @@ public class ClientManager {
 	private BufferedInputStream in;
 	private BufferedOutputStream out;
 	private boolean active;
+	private String username;
 	private Manager man;
 	
 	public ClientManager(Manager man) {
@@ -41,7 +42,7 @@ public class ClientManager {
 		
 	}
 	
-	public DataPackage receiveData() {
+	public Object receiveData() {
 		
 		if(getIfActive()) {
 			
@@ -57,12 +58,11 @@ public class ClientManager {
 				pack = shorten(buffer, count);
 				Object obj = toObject(pack);
 				
-				return (DataPackage) obj;
+				return obj;
 			} catch (IOException | ClassNotFoundException e) {
 				//print("An Error occured while receiving data from client. Closing Client.");
 				active = false;
 				close();
-				man.setGameStatus(false);
 				return null;
 			}
 			
@@ -72,12 +72,12 @@ public class ClientManager {
 		
 	}
 	
-	public boolean sendData(DataPackage dp) {
+	public boolean sendData(Object o) {
 		
 		if(!socket.isClosed() && active) {
 			
 			try {
-				byte[] bytes = toBytes(dp);
+				byte[] bytes = toBytes(o);
 				out.write(bytes);
 				out.flush();
 				//print(bytes.length + " Bytes Sent. " + dp.getStatus() + " " + dp.getFromX() + " " + dp.getFromY() + " " + dp.getToX() + " " + dp.getToY());
@@ -87,7 +87,6 @@ public class ClientManager {
 				//print("An Error occured while sending data to client. Closing Client.");
 				active = false;
 				close();
-				man.setGameStatus(false);
 				return false;
 			}
 			
@@ -170,6 +169,13 @@ public class ClientManager {
 		return !socket.isClosed() && active;
 	}
 	
+	public void setUsername(String username) {
+		this.username = username;	
+	}
+	
+	public String getUsername() {
+		return username;
+	}
 	
 
 }
