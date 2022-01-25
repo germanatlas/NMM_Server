@@ -12,6 +12,7 @@ import java.time.LocalTime;
 
 import main.Manager;
 import main.online.packs.DataPackage;
+import main.state.Location;
 
 public class ClientManager {
 	
@@ -22,6 +23,7 @@ public class ClientManager {
 	private boolean active;
 	private String username;
 	private Manager man;
+	private Location LOCATION;
 	
 	public ClientManager(Manager man) {
 		
@@ -33,6 +35,7 @@ public class ClientManager {
 		try {
 			in = new BufferedInputStream(socket.getInputStream());
 			out = new BufferedOutputStream(socket.getOutputStream());
+			LOCATION = Location.LOGIN;
 			active = true;
 			print("Finished creating Socket");
 		} catch (IOException e) {
@@ -140,6 +143,7 @@ public class ClientManager {
 		
 		try {
 			socket.close();
+			LOCATION = Location.OFFLINE;
 			active = false;
 		} catch (IOException e) {
 			//print("An Error occured while closing the Socket to Client.");
@@ -175,6 +179,14 @@ public class ClientManager {
 	
 	public String getUsername() {
 		return username;
+	}
+	
+	public Location getLocation() {
+		return LOCATION;
+	}
+	
+	public void setLocation(Location LOCATION) {
+		this.LOCATION = LOCATION;
 	}
 	
 

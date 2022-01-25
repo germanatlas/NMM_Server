@@ -6,6 +6,7 @@ import java.util.Random;
 import main.online.ClientManager;
 import main.online.packs.DataPackage;
 import main.state.GameState;
+import main.state.Location;
 
 public class Game {
 	
@@ -95,6 +96,8 @@ public class Game {
 		
 		if(dp.getStatus() == 99) {
 			
+			c[0].setLocation(Location.LOBBY);
+			c[1].setLocation(Location.LOBBY);
 			STATE = GameState.END;
 			return;
 			
@@ -786,6 +789,13 @@ public class Game {
 		
 		return STATE;
 		
+	}
+	
+	public ClientManager getClient(int i) {
+		if(i >= 0 && i <= 1) {
+			return c[i];
+		}
+		return null;
 	}
 
 }

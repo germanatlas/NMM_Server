@@ -13,6 +13,7 @@ import main.online.Server;
 import main.online.packs.DataPackage;
 import main.online.packs.LobbyPackage;
 import main.online.packs.LoginPackage;
+import main.state.Location;
 import main.state.LoginState;
 
 public class Manager {
@@ -64,10 +65,7 @@ public class Manager {
 		
 		consoleListener.start();
 		
-		
-		
 		lobby();
-		
 		
 	}
 
@@ -75,54 +73,101 @@ public class Manager {
 		
 		while(active) {
 			
-			for(int i = 0; i < MAXUSERS; i++) {
+			newGame();
+			
+			endGame();
+			
+		}
+		
+	}
+
+	private void endGame() {
+		
+		for(int i = 0; i < MAXUSERS; i++) {
+			
+			if(clientActive[i] && !inLobby[i]) {
 				
-				if(inLobby[i]) {
+				if(client[i].getLocation() == Location.LOBBY) {
 					
-					index = i;
-					if(!receiver[i].isAlive()) {
+					int g = findGameFromUsername(client[i].getUsername());
+					inLobby[getIDbyUsername(game[g].getClient(0).getUsername())] = true;
+					inLobby[getIDbyUsername(game[g].getClient(1).getUsername())] = true;
+					
+					
+				}
+				
+			}
+			
+		}
+		
+	}
+
+	private int findGameFromUsername(String username) {
+		
+		for(int i = 0; i < MAXUSERS/2; i++) {
+			
+			if(	game[i].getClient(0).getUsername() == username ||
+				game[i].getClient(1).getUsername() == username ) {
+				
+				return i;
+				
+			}
+			
+		}
+		
+		return MAXUSERS / 2;
+	}
+
+	private void newGame() {
+		
+		for(int i = 0; i < MAXUSERS; i++) {
+			
+			if(inLobby[i]) {
+				
+				index = i;
+				if(!receiver[i].isAlive()) {
+					
+					receiver[index] = new Thread(() -> {
+						int localindex = index;
+						LobbyPackage lp = null;
+						while((lp = (LobbyPackage) client[localindex].receiveData()) == null);
 						
-						receiver[index] = new Thread(() -> {
-							int localindex = index;
-							LobbyPackage lp = null;
-							while((lp = (LobbyPackage) client[localindex].receiveData()) == null);
-							
-							inLobby[localindex] = false;
-							int nem = getIDbyUsername(lp.getUser());
-							if(nem == MAXUSERS || !inLobby[nem])
-								return;
-							
-							inLobby[nem] = false;
-							receiver[nem].stop();
-							client[nem].sendData(new LobbyPackage(client[localindex].getUsername(), true));
-							
-							LobbyPackage lpnem = null;
-							while((lpnem = (LobbyPackage) client[nem].receiveData()) == null);
-							
-							if(lpnem.getAccept()) {
-								
-								//TODO start new game
-								int g = findLowestFree(gameActive);
-								
-								game[g] = new Game(this, client[localindex], client[nem]);
-								gameActive[g] = true;
-								
-								
-								
-							} else {
-								
-								client[localindex].sendData(new LobbyPackage(lp.getUser(), false));
-								inLobby[localindex] = true;
-								inLobby[nem] = true;
-								
-							}
-							
-							
-						});
+						inLobby[localindex] = false;
+						int nem = getIDbyUsername(lp.getUser());
+						if(nem == MAXUSERS || !inLobby[nem])
+							return;
 						
-						receiver[i].start();
+						inLobby[nem] = false;
+						receiver[nem].stop();
+						client[nem].sendData(new LobbyPackage(client[localindex].getUsername(), true));
 						
-					}
+						LobbyPackage lpnem = null;
+						while((lpnem = (LobbyPackage) client[nem].receiveData()) == null);
+						
+						if(lpnem.getAccept()) {
+							
+							//TODO start new game
+							int g = findLowestFree(gameActive);
+							
+							game[g] = new Game(this, client[localindex], client[nem]);
+							gameActive[g] = true;
+							
+							
+							
+						} else {
+							
+							client[localindex].sendData(new LobbyPackage(lp.getUser(), false));
+							client[localindex].setLocation(Location.GAME);
+							client[nem].setLocation(Location.GAME);
+							inLobby[localindex] = true;
+							inLobby[nem] = true;
+							
+						}
+						
+						
+					});
+					
+					receiver[i].start();
 					
 				}
 				
@@ -212,6 +257,7 @@ public class Manager {
 						lSQL.update("INSERT INTO userdata(username, pass) VALUES('" + lp.getUsername() + "', " + lp.getPassHash() + ")");
 						
 						client[n].setUsername(lp.getUsername());
+						client[n].setLocation(Location.LOBBY);
 						clientActive[n] = true;
 						inLobby[n] = true;
 						client[n].sendData(new LoginPackage(lp.getUsername(), 0, LoginState.ACCEPT.id));
@@ -242,6 +288,7 @@ public class Manager {
 					} else {
 						
 						client[n].setUsername(lp.getUsername());
+						client[n].setLocation(Location.LOBBY);
 						clientActive[n] = true;
 						inLobby[n] = true;
 						client[n].sendData(new LoginPackage(lp.getUsername(), 0, LoginState.ACCEPT.id));
