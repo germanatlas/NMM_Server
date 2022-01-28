@@ -1,8 +1,9 @@
-package main;
+package main.func;
 
 import java.util.ArrayList;
 import java.util.Random;
 
+import main.Manager;
 import main.online.ClientManager;
 import main.online.packs.DataPackage;
 import main.state.GameState;

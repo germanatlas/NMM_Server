@@ -9,22 +9,22 @@ public class LobbyPackage implements Serializable{
 	 */
 	private static final long serialVersionUID = 1L;
 	
-	private String user;
-	private boolean accept;
+	private String[] user;
+	private int status;
 	
-	public LobbyPackage(String user, boolean accept) {
+	public LobbyPackage(String[] user, int status) {
 		
 		this.user = user;
-		this.accept = accept;
+		this.status = status;
 		
 	}
 	
-	public String getUser() {
+	public String[] getUser() {
 		return user;
 	}
 	
-	public boolean getAccept() {
-		return accept;
+	public int getStatus() {
+		return status;
 	}
 	
 
