@@ -40,8 +40,9 @@ public class LiteSQL {
 		
 	}
 	
-	public void init() {
+	private void init() {
 		
+		//Login Data
 		update("CREATE TABLE IF NOT EXISTS userdata(id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, username VARCHAR, pass INTEGER)");
 		
 	}
@@ -86,7 +87,7 @@ public class LiteSQL {
 		
 	}
 	
-	public ResultSet search(String sql) {
+	public ResultSet query(String sql) {
 		
 		try {
 			return statement.executeQuery(sql);

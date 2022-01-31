@@ -9,7 +9,7 @@ import main.online.packs.DataPackage;
 import main.state.GameState;
 import main.state.Location;
 
-public class Game {
+public class Game implements Runnable {
 	
 	/*
 	 * TODO
@@ -41,10 +41,7 @@ public class Game {
 		this.man = manager;
 		c[0] = c1;
 		c[1] = c2;
-		reset();
-		while(true) {
-			tick();
-		}
+		man.print("New game between " + c[0].getUsername() + " & " + c[1].getUsername());
 		
 	}
 
@@ -684,7 +681,6 @@ public class Game {
 		
 	}
 	
-
 	private int[][] getNeighbors(int x, int y) {
 		
 		int[][] tmp = new int[4][2];
@@ -797,6 +793,16 @@ public class Game {
 			return c[i];
 		}
 		return null;
+	}
+
+	@Override
+	public void run() {
+		
+		reset();
+		while(true) {
+			tick();
+		}
+		
 	}
 
 }

@@ -6,10 +6,11 @@ import java.io.InputStreamReader;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalTime;
-import java.util.concurrent.ConcurrentHashMap;
 
 import main.func.Game;
-import main.func.ClientList;
+import main.func.maps.ClientList;
+import main.func.maps.GameList;
+import main.func.maps.ThreadList;
 import main.local.LiteSQL;
 import main.online.ClientManager;
 import main.online.Server;
@@ -21,43 +22,38 @@ import main.state.LoginState;
 
 public class Manager {
 	
-	private final int	TIMEOUT = 5000,
-						MAXUSERS = 50;
+	private final int MAXUSERS = 50;
 	
-	private int index,
-				totalOnline;
+	private int totalOnline;
 	
 	private Server server;
-	private Game[] game;
 	private LiteSQL lSQL;
 	
 	private boolean active;
 
-	private boolean[]	inLobby			= new boolean[MAXUSERS],
-						gameActive		= new boolean[MAXUSERS/2];
-	
-	private String[] playerList = new String[MAXUSERS];
-	
-	private Thread[] receiver;
-
-	private ClientList list;
+	private ClientList clientList;
+	private GameList gameList;
+	private ThreadList threadList;
 	
 	public Manager() {
 		
 		server = new Server();
+		
 		lSQL = new LiteSQL(this);
 		lSQL.connect();
+		
+		clientList = new ClientList();
+		gameList = new GameList();
+		threadList = new ThreadList();
+		
 		active = true;
-		receiver = new Thread[MAXUSERS];
-		initReceiver();
-		game = new Game[MAXUSERS/2];
+		
 		
 		Thread accepter = new Thread(() -> {
 			
 			accept();
 			
 		});
-		
 		accepter.start();
 		
 		Thread consoleListener = new Thread(() -> {
@@ -65,72 +61,10 @@ public class Manager {
 			consoleListener();
 			
 		});
-		
 		consoleListener.start();
 		
+		
 		lobby();
-		
-	}
-
-	private void initList(String[] list) {
-		
-		for(int i = 0; i < MAXUSERS; i++) {
-			
-			list[i] = "";
-			
-		}
-		
-	}
-
-	private void initReceiver() {
-		
-		for(int i = 0; i < MAXUSERS; i++) {
-			
-			index = i;
-			
-			receiver[index] = new Thread(() -> {
-				int localindex = index;
-				LobbyPackage lp = null;
-				while((lp = (LobbyPackage) client[localindex].receiveData()) == null);
-				
-				inLobby[localindex] = false;
-				int nem = getIDbyUsername(lp.getUser()[0]);
-				if(nem == MAXUSERS || !inLobby[nem])
-					return;
-				
-				inLobby[nem] = false;
-				receiver[nem].stop();
-				String[] tmp = {client[localindex].getUsername()};
-				client[nem].sendData(new LobbyPackage(tmp, LobbyPackState.CHALLENGE.id));
-				
-				LobbyPackage lpnem = null;
-				while((lpnem = (LobbyPackage) client[nem].receiveData()) == null);
-				
-				if(lpnem.getStatus() == LobbyPackState.ACCEPT.id) {
-					
-					//TODO start new game
-					int g = findLowestFree(gameActive);
-					
-					game[g] = new Game(this, client[localindex], client[nem]);
-					gameActive[g] = true;
-					client[localindex].setLocation(Location.GAME);
-					client[nem].setLocation(Location.GAME);
-					inLobby[localindex] = false;
-					inLobby[nem] = false;
-					
-					
-					
-					
-				} else {
-					
-					client[localindex].sendData(new LobbyPackage(lp.getUser(), LobbyPackState.DENY.id));
-					
-				}
-				
-				
-			});
-			
-		}
 		
 	}
 
@@ -138,100 +72,118 @@ public class Manager {
 		
 		while(active) {
 			
-			newGame();
+			lobbyListener();
 			
-			endGame();
+			endgameListener();
 			
-		}
-		
-	}
-
-	private void endGame() {
-		
-		for(ClientManager cm : list.getAllClients()) {
-			
-			if(cm.getLocation() == Location.RETURN_TO_LOBBY) {
-				
-				//TODO
-				
-				cm.setLocation(Location.LOBBY);
-				
-			}
+			checkInactiveClients();
 			
 		}
 		
 	}
 
-	private int findGameFromUsername(String username) {
+	private void lobbyListener() {
 		
-		for(int i = 0; i < MAXUSERS/2; i++) {
-			
-			if(	game[i].getClient(0).getUsername() == username ||
-				game[i].getClient(1).getUsername() == username ) {
-				
-				return i;
-				
-			}
-			
-		}
+		ClientManager[] cml = clientList.getAllClients();
 		
-		return MAXUSERS / 2;
-	}
-
-	private void newGame() {
-		
-		for(int i = 0; i < MAXUSERS; i++) {
+		for(ClientManager cm : cml) {
 			
-			if(inLobby[i]) {
+			if(threadList.getThread(cm.getUsername()) == null) {
 				
-				index = i;
-				if(!receiver[i].isAlive()) {
+				if(cm.getLocation() == Location.LOBBY) {
 					
-					receiver[index] = new Thread(() -> {
-						int localindex = index;
-						LobbyPackage lp = null;
-						while((lp = (LobbyPackage) client[localindex].receiveData()) == null);
+					Thread t = new Thread(() -> {
 						
-						//inLobby[localindex] = false;
-						int nem = getIDbyUsername(lp.getUser()[0]);
-						if(nem == MAXUSERS || !inLobby[nem])
-							return;
-						
-						//inLobby[nem] = false;
-						receiver[nem].stop();
-						String[] tmp = {client[localindex].getUsername()};
-						client[nem].sendData(new LobbyPackage(tmp, LobbyPackState.CHALLENGE.id));
-						
-						LobbyPackage lpnem = null;
-						while((lpnem = (LobbyPackage) client[nem].receiveData()) == null);
-						
-						if(lpnem.getStatus() == LobbyPackState.ACCEPT.id) {
+						while(cm.getLocation() == Location.LOBBY) {
 							
-							//TODO start new game
-							int g = findLowestFree(gameActive);
+							LobbyPackage lp = null;
 							
-							game[g] = new Game(this, client[localindex], client[nem]);
-							gameActive[g] = true;
+							while((lp = (LobbyPackage) cm.receiveData()) == null);
 							
-							
-							
-							
-						} else {
-							
-							client[localindex].sendData(new LobbyPackage(lp.getUser(), LobbyPackState.DENY.id));
-							client[localindex].setLocation(Location.GAME);
-							client[nem].setLocation(Location.GAME);
-							inLobby[localindex] = true;
-							inLobby[nem] = true;
+							if(lp.getStatus() == LobbyPackState.CHALLENGE.id) {
+								
+								ClientManager nem = clientList.getClient(lp.getUser()[0]);
+								
+								String[] tmp = {cm.getUsername()};
+								nem.sendData(new LobbyPackage(tmp, LobbyPackState.CHALLENGE.id));
+								
+								
+							} else if(lp.getStatus() == LobbyPackState.ACCEPT.id) {
+								
+								ClientManager nem = clientList.getClient(lp.getUser()[0]);
+								
+								String[] tmp = {cm.getUsername()};
+								nem.sendData(new LobbyPackage(tmp, LobbyPackState.ACCEPT.id));
+
+								cm.setLocation(Location.GAME);
+								nem.setLocation(Location.GAME);
+								
+								Thread nemt = threadList.getThread(nem.getUsername());
+								
+								if(nemt != null) {
+									nemt.stop();
+								}
+								
+								threadList.remove(cm.getUsername());
+								threadList.remove(nem.getUsername());
+								
+								ClientManager[] cmiL = getCMinLobby();
+								
+								for(ClientManager c : cmiL) {
+									
+									String[] temp = {cm.getUsername(), nem.getUsername()};
+									c.sendData(new LobbyPackage(temp, LobbyPackState.REMOVE.id));
+									
+								}
+								
+								Game g = new Game(this, cm, nem);
+								Thread gt = new Thread(g);
+								gt.start();
+								gameList.newGame(cm.getUsername(), nem.getUsername(), g);
+								
+							} else if(lp.getStatus() == LobbyPackState.QUIT.id) {
+								
+								ClientManager[] cmiL = getCMinLobby();
+								
+								for(ClientManager c : cmiL) {
+
+									cm.close();
+									String[] tmp = {cm.getUsername()};
+									c.sendData(new LobbyPackage(tmp, LobbyPackState.REMOVE.id));
+									
+								}
+								
+							}
 							
 						}
 						
-						
 					});
 					
-					receiver[i].start();
+					threadList.add(cm.getUsername(), t);
+					t.start();
 					
 				}
+				
+			}
+			
+		}
+		
+	}
+
+	private void endgameListener() {
+		
+		for(ClientManager cm : clientList.getAllClients()) {
+			
+			if(cm.getLocation() == Location.RETURN_TO_LOBBY || cm.getLocation() == Location.OFFLINE) {
+				
+				if(cm.getLocation() == Location.RETURN_TO_LOBBY) {
+					
+					cm.sendData(new LobbyPackage(getUsersinLobby(), LobbyPackState.INIT.id));
+					cm.setLocation(Location.LOBBY);
+					
+				}
+				
+				gameList.removeGame(cm.getUsername());
 				
 			}
 			
@@ -258,6 +210,18 @@ public class Manager {
 					print("Server successfully shut down.");
 					System.exit(0);
 					
+				} else if(args[0].equalsIgnoreCase("list") || args[0].equalsIgnoreCase("playerlist")) {
+					
+					String out = "";
+					
+					for(String u : clientList.getUsernames()) {
+						
+						out += u + " ";
+						
+					}
+					
+					print("Currently active users: " + out);
+					
 				}
 				
 			}
@@ -271,15 +235,62 @@ public class Manager {
 		
 		print("Closing all Clients");
 		
-		while(list.getMap().size() > 0) {
+		while(clientList.getMap().size() > 0) {
 			
-			list.getClient(list.getUsernames()[0]).close(); //TODO
-			list.removeUser(list.getUsernames()[0]);
+			clientList.getClient(clientList.getUsernames()[0]).close(); //TODO
+			clientList.removeUser(clientList.getUsernames()[0]);
 			
 		}
 		
 	}
 
+	private String[] getUsersinLobby() {
+		
+		ClientManager[] cmiL = getCMinLobby();
+		
+		String[] ret = new String[cmiL.length];
+		
+		for(int i = 0; i < cmiL.length; i++) {
+			
+			ret[i] = cmiL[i].getUsername();
+			
+		}
+		
+		return ret;
+		
+	}
+	
+	private ClientManager[] getCMinLobby() {
+		
+		int count = 0;
+		ClientManager[] cml = clientList.getAllClients();
+		for(int i = 0; i < cml.length; i++) {
+			
+			if(cml[i].getLocation() == Location.LOBBY) {
+				
+				count++;
+				
+			}
+			
+		}
+		
+		ClientManager[] ret = new ClientManager[count];
+		
+		for(int i = 0, j = 0; i < cml.length; i++) {
+			
+			if(cml[i].getLocation() == Location.LOBBY) {
+				
+				ret[j] = cml[i];
+				j++;
+				
+			}
+			
+		}
+		
+		return ret;
+		
+	}
+	
 	private void accept() {
 		
 		acceptloop:
@@ -318,16 +329,17 @@ public class Manager {
 				
 			}
 			
-			if(list.getClient(lp.getUsername()) != null) {
+			if(clientList.getClient(lp.getUsername()) != null) {
 				
 				c.sendData(new LoginPackage(lp.getUsername(), 0, LoginState.IS_ALREADY_ONLINE.id));
 				c.close();
+				continue acceptloop;
 				
 			}
 			
 			
 			
-			ResultSet rs = lSQL.search("SELECT * FROM userdata WHERE username = '" + lp.getUsername() + "'");
+			ResultSet rs = lSQL.query("SELECT * FROM userdata WHERE username = '" + lp.getUsername() + "'");
 			
 			try {
 				
@@ -337,19 +349,19 @@ public class Manager {
 
 						lSQL.update("INSERT INTO userdata(username, pass) VALUES('" + lp.getUsername() + "', " + lp.getPassHash() + ")");
 						
-						String[] cliList = list.getUsernames();
+						String[] cliList = getUsersinLobby();
 						c.setUsername(lp.getUsername());
 						c.setLocation(Location.LOBBY);
 						c.sendData(new LoginPackage(lp.getUsername(), 0, LoginState.ACCEPT.id));
 						c.sendData(new LobbyPackage(cliList, LobbyPackState.INIT.id));
-						list.addUser(lp.getUsername(), c);
+						clientList.addUser(lp.getUsername(), c);
 						totalOnline++;
 						
 						for(int i = 0; i < cliList.length; i++) { //UPDATE TO ALL CLIENTS
 							
 							ClientManager tmpCli;
 							
-							if((tmpCli = list.getClient(cliList[i])) != null) {
+							if((tmpCli = clientList.getClient(cliList[i])) != null) {
 								
 								String[] tmp = {lp.getUsername()};
 								tmpCli.sendData(new LobbyPackage(tmp, LobbyPackState.ADD.id));
@@ -381,19 +393,19 @@ public class Manager {
 						
 					} else {
 						
-						String[] cliList = list.getUsernames();
+						String[] cliList = getUsersinLobby();
 						c.setUsername(lp.getUsername());
 						c.setLocation(Location.LOBBY);
 						c.sendData(new LoginPackage(lp.getUsername(), 0, LoginState.ACCEPT.id));
 						c.sendData(new LobbyPackage(cliList, LobbyPackState.INIT.id));
-						list.addUser(lp.getUsername(), c);
+						clientList.addUser(lp.getUsername(), c);
 						totalOnline++;
 						
 						for(int i = 0; i < cliList.length; i++) { //UPDATE TO ALL CLIENTS
 							
 							ClientManager tmpCli;
 							
-							if((tmpCli = list.getClient(cliList[i])) != null) {
+							if((tmpCli = clientList.getClient(cliList[i])) != null) {
 								
 								String[] tmp = {lp.getUsername()};
 								tmpCli.sendData(new LobbyPackage(tmp, LobbyPackState.ADD.id));
@@ -419,16 +431,22 @@ public class Manager {
 		
 	}
 
-	private void getInactiveClients() {
+	private void checkInactiveClients() {
 		
-		//TODO
+		ClientManager[] cma = clientList.getAllClients();
 		
-	}
-	
-	private void initArray(boolean[] a) {
+		for(ClientManager cm : cma) {
+			
+			if(cm.getLocation() == Location.OFFLINE) {
+				
+				print(cm.getUsername() + " left the Server");
+				gameList.removeGame(cm.getUsername());
+				clientList.removeUser(cm.getUsername());
+				
+			}
+			
+		}
 		
-		for(int i = 0; i < a.length; i++)
-			a[i] = false;
 		
 	}
 	
@@ -443,7 +461,11 @@ public class Manager {
 	}
 	
 	public ClientList getList() {
-		return list;
+		return clientList;
+	}
+
+	public LiteSQL getSQL() {
+		return lSQL;
 	}
 
 }

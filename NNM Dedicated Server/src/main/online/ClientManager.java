@@ -8,10 +8,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.time.LocalTime;
-
 import main.Manager;
-import main.online.packs.DataPackage;
 import main.state.Location;
 
 public class ClientManager {
@@ -22,6 +19,7 @@ public class ClientManager {
 	private BufferedOutputStream out;
 	private boolean active;
 	private String username;
+	@SuppressWarnings("unused")
 	private Manager man;
 	private Location LOCATION;
 	
@@ -31,15 +29,16 @@ public class ClientManager {
 		active = false;
 		this.server = man.getServer();
 		this.socket = server.allowUser();
-		print("Starting Streams...");
+		//man.print("Starting Streams...");
 		try {
 			in = new BufferedInputStream(socket.getInputStream());
 			out = new BufferedOutputStream(socket.getOutputStream());
 			LOCATION = Location.LOGIN;
 			active = true;
-			print("Finished creating Socket");
+			//man.print("Finished creating Socket");
 		} catch (IOException e) {
-			print("An Error occured while creating streams...");
+			LOCATION = Location.OFFLINE;
+			man.print("An Error occured while creating streams...");
 		}
 		
 		
@@ -148,12 +147,6 @@ public class ClientManager {
 		} catch (IOException e) {
 			//print("An Error occured while closing the Socket to Client.");
 		}
-		
-	}
-	
-	public void print(String msg) {
-		
-		System.out.println("[" + LocalTime.now().getHour() + ":" + LocalTime.now().getMinute() + ":" + LocalTime.now().getSecond() + "]\t" + msg);
 		
 	}
 

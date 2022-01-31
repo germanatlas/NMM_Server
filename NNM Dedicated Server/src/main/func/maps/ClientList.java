@@ -1,4 +1,4 @@
-package main.func;
+package main.func.maps;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,9 +16,7 @@ public class ClientList {
 	
 	public boolean addUser(String username, ClientManager client) {
 		
-		ClientManager cm;
-		
-		if((cm = this.clients.get(username)) == null) {
+		if(this.clients.get(username) == null) {
 			
 			this.clients.put(username, client);
 			return true;
