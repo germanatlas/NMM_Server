@@ -60,6 +60,7 @@ public class ClientManager {
 				pack = shorten(buffer, count);
 				Object obj = toObject(pack);
 				
+				man.print("Package received from " + username);
 				return obj;
 			} catch (IOException | ClassNotFoundException e) {
 				//print("An Error occured while receiving data from client. Closing Client.");

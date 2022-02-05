@@ -14,6 +14,7 @@ import main.func.maps.ThreadList;
 import main.local.LiteSQL;
 import main.online.ClientManager;
 import main.online.Server;
+import main.online.packs.DataPackage;
 import main.online.packs.LobbyPackage;
 import main.online.packs.LoginPackage;
 import main.state.LobbyPackState;
@@ -63,6 +64,14 @@ public class Manager {
 		});
 		consoleListener.start();
 		
+		Thread feeder = new Thread(() -> {
+			
+			feed();
+			
+		});
+		
+		feeder.start();
+		
 		
 		lobby();
 		
@@ -78,6 +87,37 @@ public class Manager {
 			
 			checkInactiveClients();
 			
+		}
+		
+	}
+	
+	private void feed() {
+		
+		double delta = 0;
+		long now, lastTime = System.nanoTime();
+		
+		while(active) {
+			now = System.nanoTime();
+			delta += (now - lastTime) / (double)(1000000000);
+			//print(delta + " " + now + " " + lastTime + " " + (now - lastTime));
+			lastTime = now;
+			if(delta >= 1) {
+				
+				//print("Tick");
+				
+				String[] list = getUsersinLobby();
+				
+				for(String s : list) {
+					
+					ClientManager tmp = clientList.getClient(s);
+					
+					tmp.sendData(new LobbyPackage(list, LobbyPackState.UPDATE.id));
+					
+				}
+				
+				delta--;
+			} 
+
 		}
 		
 	}
@@ -127,31 +167,13 @@ public class Manager {
 								threadList.remove(cm.getUsername());
 								threadList.remove(nem.getUsername());
 								
-								ClientManager[] cmiL = getCMinLobby();
-								
-								for(ClientManager c : cmiL) {
-									
-									String[] temp = {cm.getUsername(), nem.getUsername()};
-									c.sendData(new LobbyPackage(temp, LobbyPackState.REMOVE.id));
-									
-								}
-								
 								Game g = new Game(this, cm, nem);
 								Thread gt = new Thread(g);
 								gt.start();
 								gameList.newGame(cm.getUsername(), nem.getUsername(), g);
 								
 							} else if(lp.getStatus() == LobbyPackState.QUIT.id) {
-								
-								ClientManager[] cmiL = getCMinLobby();
-								
-								for(ClientManager c : cmiL) {
-
-									cm.close();
-									String[] tmp = {cm.getUsername()};
-									c.sendData(new LobbyPackage(tmp, LobbyPackState.REMOVE.id));
-									
-								}
+								//TODO
 								
 							}
 							
@@ -221,6 +243,14 @@ public class Manager {
 					}
 					
 					print("Currently active users: " + out);
+					
+				} else if(args[0].equalsIgnoreCase("send")) {
+					
+					if(args[1] != null) {
+						
+						clientList.getClient(args[1]).sendData(new DataPackage(0, 0, 0, 0, 0));
+						
+					}
 					
 				}
 				
@@ -356,21 +386,8 @@ public class Manager {
 						c.sendData(new LobbyPackage(cliList, LobbyPackState.INIT.id));
 						clientList.addUser(lp.getUsername(), c);
 						totalOnline++;
-						
-						for(int i = 0; i < cliList.length; i++) { //UPDATE TO ALL CLIENTS
-							
-							ClientManager tmpCli;
-							
-							if((tmpCli = clientList.getClient(cliList[i])) != null) {
-								
-								String[] tmp = {lp.getUsername()};
-								tmpCli.sendData(new LobbyPackage(tmp, LobbyPackState.ADD.id));
-								
-							}
-							
-						}
 
-						print(lp.getUsername() + " joined the Server for the first time\tCount: " + totalOnline);
+						print(c.getUsername() + " joined the Server for the first time\tCount: " + totalOnline);
 						
 					} else {
 						
@@ -387,7 +404,7 @@ public class Manager {
 						c.close();
 						
 					} else if(lp.getPassHash() != rs.getInt("pass")) { //Pass hash is not equal to db hash, kick client
-
+						
 						c.sendData(new LoginPackage(lp.getUsername(), 0, LoginState.LOGIN_INVALID_PASSWORD.id));
 						c.close();
 						
@@ -401,20 +418,7 @@ public class Manager {
 						clientList.addUser(lp.getUsername(), c);
 						totalOnline++;
 						
-						for(int i = 0; i < cliList.length; i++) { //UPDATE TO ALL CLIENTS
-							
-							ClientManager tmpCli;
-							
-							if((tmpCli = clientList.getClient(cliList[i])) != null) {
-								
-								String[] tmp = {lp.getUsername()};
-								tmpCli.sendData(new LobbyPackage(tmp, LobbyPackState.ADD.id));
-								
-							}
-							
-						}
-						
-						print(lp.getUsername() + " joined the Server\tCount: " + totalOnline);
+						print(c.getUsername() + " joined the Server\tCount: " + totalOnline);
 						
 					}
 					

@@ -47,9 +47,12 @@ public class Game implements Runnable {
 
 	public void tick() {
 		
+		man.print("Tick");
+		
 		try {
 			
 			if(STATE != GameState.WIN) {
+				man.print("Waiting for " + c[(activeUser?0:1)].getUsername());
 				dp = (DataPackage) c[(activeUser?0:1)].receiveData();
 			} else {
 				dp = (DataPackage) c[0].receiveData();
@@ -61,10 +64,12 @@ public class Game implements Runnable {
 			
 		} catch(ClassCastException e) {
 			
+			e.printStackTrace();
 			return;
 			
 		}
 		
+		//man.print("Package received");
 		if(dp == null && dpdupe == null) {
 			
 			return;
@@ -758,6 +763,8 @@ public class Game implements Runnable {
 		 *  1 - you start
 		 * 
 		 */
+		c[0].sendData(new DataPackage(GameState.NEW.id, (color?0:1), (activeUser?0:1), 0, 0));
+		c[1].sendData(new DataPackage(GameState.NEW.id, (!color?0:1), (!activeUser?0:1), 0, 0));
 		c[0].sendData(new DataPackage(GameState.NEW.id, (color?0:1), (activeUser?0:1), 0, 0));
 		c[1].sendData(new DataPackage(GameState.NEW.id, (!color?0:1), (!activeUser?0:1), 0, 0));
 		pc = new int[2];
