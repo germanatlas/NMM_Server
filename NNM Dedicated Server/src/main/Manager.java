@@ -83,9 +83,9 @@ public class Manager {
 			
 			lobbyListener();
 			
-			endgameListener();
-			
 			checkInactiveClients();
+			
+			endgameListener();
 			
 		}
 		
@@ -138,7 +138,26 @@ public class Manager {
 							
 							LobbyPackage lp = null;
 							
-							while((lp = (LobbyPackage) cm.receiveData()) == null);
+							while(lp == null) {
+								
+								Object o = cm.receiveData();
+								
+								if(o == null)
+									continue;
+								
+								if(o.getClass() == new LobbyPackage(null, 0).getClass()) {
+									lp = (LobbyPackage) o;
+									
+								} else if(o.getClass() == new DataPackage(0, 0, 0, 0, 0).getClass()) {
+									cm.sendData(new DataPackage(99, 0, 0, 0, 0));
+									
+								}
+								
+							}
+							
+							if(lp.getStatus() == 100) {
+								break;
+							}
 							
 							if(lp.getStatus() == LobbyPackState.CHALLENGE.id) {
 								
@@ -158,11 +177,6 @@ public class Manager {
 								cm.setLocation(Location.GAME);
 								nem.setLocation(Location.GAME);
 								
-								Thread nemt = threadList.getThread(nem.getUsername());
-								
-								if(nemt != null) {
-									nemt.stop();
-								}
 								
 								threadList.remove(cm.getUsername());
 								threadList.remove(nem.getUsername());
@@ -444,6 +458,9 @@ public class Manager {
 			if(cm.getLocation() == Location.OFFLINE) {
 				
 				print(cm.getUsername() + " left the Server");
+				if(gameList.getGame(cm.getUsername()) != null) {
+					gameList.getGame(cm.getUsername()).endGame();
+				}
 				gameList.removeGame(cm.getUsername());
 				clientList.removeUser(cm.getUsername());
 				

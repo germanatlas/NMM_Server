@@ -46,7 +46,7 @@ public class ClientManager {
 	
 	public Object receiveData() {
 		
-		if(getIfActive()) {
+		if(LOCATION != Location.OFFLINE) {
 			
 			try {
 				byte[] buffer = new byte[2048];
@@ -60,11 +60,9 @@ public class ClientManager {
 				pack = shorten(buffer, count);
 				Object obj = toObject(pack);
 				
-				man.print("Package received from " + username);
 				return obj;
 			} catch (IOException | ClassNotFoundException e) {
 				//print("An Error occured while receiving data from client. Closing Client.");
-				active = false;
 				close();
 				return null;
 			}
@@ -77,7 +75,7 @@ public class ClientManager {
 	
 	public boolean sendData(Object o) {
 		
-		if(!socket.isClosed() && active) {
+		if(LOCATION != Location.OFFLINE) {
 			
 			try {
 				byte[] bytes = toBytes(o);
@@ -88,7 +86,6 @@ public class ClientManager {
 				return true;
 			} catch (IOException e) {
 				//print("An Error occured while sending data to client. Closing Client.");
-				active = false;
 				close();
 				return false;
 			}

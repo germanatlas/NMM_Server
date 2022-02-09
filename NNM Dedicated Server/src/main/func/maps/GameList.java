@@ -33,6 +33,8 @@ private ConcurrentHashMap<String, Game> games;
 		
 		for(int i = 0; i < games.size(); i++) {
 			
+			if(n == null) return false;
+			
 			if(n[i].contains(username)) {
 				
 				//If something was removed true, if not false
@@ -74,6 +76,8 @@ private ConcurrentHashMap<String, Game> games;
 		String[] n = getUsernames();
 		
 		for(int i = 0; i < games.size(); i++) {
+			
+			if(n == null) return null;
 			
 			if(n[i].contains(username)) {
 				

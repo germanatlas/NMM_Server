@@ -6,7 +6,9 @@ import java.util.Random;
 import main.Manager;
 import main.online.ClientManager;
 import main.online.packs.DataPackage;
+import main.online.packs.LobbyPackage;
 import main.state.GameState;
+import main.state.LobbyPackState;
 import main.state.Location;
 
 public class Game implements Runnable {
@@ -17,13 +19,15 @@ public class Game implements Runnable {
 	 */
 	
 	private Manager man;
-	private ClientManager c[] = new ClientManager[2];
+	private ClientManager[] c = new ClientManager[2];
+	private Thread[] rec = new Thread[2];
 	private GameState STATE, tmpSTATE;
 	private Random rdm;
-	private DataPackage dp, dp2, dpdupe, dp2dupe;
+	private DataPackage[]	dp = new DataPackage[3], //0 - Client 0, 1 - Client 1, 2 - Package used currently
+							dpdupe = new DataPackage[2];
 	
-	private int field[][];
-	private int pc[];
+	private int[][] field;
+	private int[] pc;
 
 	private ArrayList<String> repetitiveField;
 	
@@ -33,7 +37,8 @@ public class Game implements Runnable {
 	
 	private boolean color, activeUser,
 					lastMill,
-					newboard;
+					newboard,
+					upd = false;
 	
 	
 	public Game(Manager manager, ClientManager c1, ClientManager c2) {
@@ -47,78 +52,90 @@ public class Game implements Runnable {
 
 	public void tick() {
 		
-		man.print("Tick");
-		
-		try {
+		if(!rec[0].isAlive()) {
 			
-			if(STATE != GameState.WIN) {
-				man.print("Waiting for " + c[(activeUser?0:1)].getUsername());
-				dp = (DataPackage) c[(activeUser?0:1)].receiveData();
-			} else {
-				dp = (DataPackage) c[0].receiveData();
-				dp2 = (DataPackage) c[1].receiveData();
+			rec[0] = new Thread(() -> {
 				
-				if(dp != null) dpdupe = dp;
-				if(dp2 != null) dp2dupe = dp2;
-			}
-			
-		} catch(ClassCastException e) {
-			
-			e.printStackTrace();
-			return;
+				Object o = c[0].receiveData();
+				
+				if(o.getClass() == new DataPackage(0, 0, 0, 0, 0).getClass()) {
+					dp[0] = (DataPackage) o;
+					if(dp[0] != null) dpdupe[0] = dp[0];
+				} else {
+					c[0].sendData(new LobbyPackage(null, LobbyPackState.RESEND.id));
+				}
+				
+				
+			});
+			rec[0].start();
 			
 		}
 		
-		//man.print("Package received");
-		if(dp == null && dpdupe == null) {
+		if(!rec[1].isAlive()) {
 			
-			return;
+			rec[1] = new Thread(() -> {
+				
+				Object o = c[1].receiveData();
+				
+				if(o.getClass() == new DataPackage(0, 0, 0, 0, 0).getClass()) {
+					dp[1] = (DataPackage) o;
+					if(dp[1] != null) dpdupe[1] = dp[1];
+				} else {
+					c[1].sendData(new LobbyPackage(null, LobbyPackState.RESEND.id));
+				}
+				
+			});
+			rec[1].start();
+			
+		}
+
+		if(!upd) {
+			man.print("Waiting for " + c[(activeUser?0:1)].getUsername());
+			upd = true;
 		}
 		
-		if(STATE == GameState.WIN) {
+		if(dp[!activeUser?0:1] != null) {
 			
-			if(dp2dupe == null) {
-				return;
-			}
-			
-			if(dpdupe.getStatus() == 98 && dp2dupe.getStatus() == 98) {
+			if(dp[!activeUser?0:1].getStatus() == 99) {
 				
-				reset();
-				return;
-				
-			} else if(dpdupe.getStatus() == 99 || dp2dupe.getStatus() == 99) {
-				
-				c[0].sendData(new DataPackage(99, 0, 0, 0, 0));
-				c[1].sendData(new DataPackage(99, 0, 0, 0, 0));
+				c[!activeUser?0:1].sendData(new DataPackage(99, 0, 0, 0, 0));
 				STATE = GameState.END;
+				return;
 				
 			}
-			return;
 			
 		}
 		
-		if(dp.getStatus() == 99) {
+		if(dp[activeUser?0:1] != null) {
 			
-			c[0].setLocation(Location.LOBBY);
-			c[1].setLocation(Location.LOBBY);
-			STATE = GameState.END;
-			return;
+			if(dp[activeUser?0:1].getStatus() == 99) {
+				
+				c[!activeUser?0:1].sendData(new DataPackage(99, 0, 0, 0, 0));
+				STATE = GameState.END;
+				return;
+				
+			}
+
+			dp[2] = dp[activeUser?0:1];
+			dp[activeUser?0:1] = null;
 			
-		}
+		} else return;
+		
+		upd = false;
 		
 		checkGameState();
 		
 		if(STATE == GameState.PLACE) {
 			
-			if(field[dp.getToX()][dp.getToY()] == 0) {
+			if(field[dp[2].getToX()][dp[2].getToY()] == 0) {
 				
-				field[dp.getToX()][dp.getToY()] = (activeUser?1:2);
-				if(checkMill(dp.getToX(), dp.getToY())) {
+				field[dp[2].getToX()][dp[2].getToY()] = (activeUser?1:2);
+				if(checkMill(dp[2].getToX(), dp[2].getToY())) {
 					
 					tmpSTATE = STATE;
 					STATE = GameState.MILL;
-					c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, 0, 0, dp.getToX(), dp.getToY()));
-					c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, 0, 0, dp.getToX(), dp.getToY()));
+					c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
+					c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
 					
 					
 				} else {
@@ -126,8 +143,8 @@ public class Game implements Runnable {
 					count++;
 					if(activeUser == lastMill) roundsWithoutMill++;
 					checkGameState();
-					c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, 0, 0, dp.getToX(), dp.getToY()));
-					c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, 0, 0, dp.getToX(), dp.getToY()));
+					c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
+					c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
 					activeUser = !activeUser;
 					
 					
@@ -145,28 +162,28 @@ public class Game implements Runnable {
 		
 		if(STATE == GameState.MOVE) {
 			
-			if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
-				field[dp.getToX()][dp.getToY()] == 0) {
+			if(	field[dp[2].getFromX()][dp[2].getFromY()] == (activeUser?1:2) &&
+				field[dp[2].getToX()][dp[2].getToY()] == 0) {
 				
-				if(isNeighbor(dp.getFromX(), dp.getFromY(), dp.getToX(),dp.getToY())) {
+				if(isNeighbor(dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(),dp[2].getToY())) {
 					
-					field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
-					field[dp.getFromX()][dp.getFromY()] = 0;
+					field[dp[2].getToX()][dp[2].getToY()] = field[dp[2].getFromX()][dp[2].getFromY()];
+					field[dp[2].getFromX()][dp[2].getFromY()] = 0;
 					
-					if(checkMill(dp.getToX(), dp.getToY())) {
+					if(checkMill(dp[2].getToX(), dp[2].getToY())) {
 
 						tmpSTATE = STATE;
 						STATE = GameState.MILL;
-						c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-						c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+						c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+						c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 						
 						
 					} else {
 
 						if(activeUser == lastMill) roundsWithoutMill++;
 						checkGameState();
-						c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-						c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+						c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+						c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 						activeUser = !activeUser;
 						
 						
@@ -194,26 +211,26 @@ public class Game implements Runnable {
 				
 				if(activeUser) { // User with 3 Stones jumps
 					
-					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
-						field[dp.getToX()][dp.getToY()] == 0) {
+					if(	field[dp[2].getFromX()][dp[2].getFromY()] == (activeUser?1:2) &&
+						field[dp[2].getToX()][dp[2].getToY()] == 0) {
 						
-						field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
-						field[dp.getFromX()][dp.getFromY()] = 0;
+						field[dp[2].getToX()][dp[2].getToY()] = field[dp[2].getFromX()][dp[2].getFromY()];
+						field[dp[2].getFromX()][dp[2].getFromY()] = 0;
 							
-						if(checkMill(dp.getToX(), dp.getToY())) {
+						if(checkMill(dp[2].getToX(), dp[2].getToY())) {
 
 							tmpSTATE = STATE;	
 							STATE = GameState.MILL;
-							c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-							c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+							c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+							c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 							
 								
 						} else {
 
 							if(activeUser == lastMill) roundsWithoutMill++;
 							checkGameState();
-							c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-							c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+							c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+							c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 							activeUser = !activeUser;
 							
 								
@@ -228,28 +245,28 @@ public class Game implements Runnable {
 						
 				} else { //Other user moves normally
 						
-					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
-						field[dp.getToX()][dp.getToY()] == 0) {
+					if(	field[dp[2].getFromX()][dp[2].getFromY()] == (activeUser?1:2) &&
+						field[dp[2].getToX()][dp[2].getToY()] == 0) {
 							
-						if(isNeighbor(dp.getFromX(), dp.getFromY(), dp.getToX(),dp.getToY())) {
+						if(isNeighbor(dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(),dp[2].getToY())) {
 								
-							field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
-							field[dp.getFromX()][dp.getFromY()] = 0;
+							field[dp[2].getToX()][dp[2].getToY()] = field[dp[2].getFromX()][dp[2].getFromY()];
+							field[dp[2].getFromX()][dp[2].getFromY()] = 0;
 								
-							if(checkMill(dp.getToX(), dp.getToY())) {
+							if(checkMill(dp[2].getToX(), dp[2].getToY())) {
 
 								tmpSTATE = STATE;
 								STATE = GameState.MILL;
-								c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-								c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+								c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+								c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 								
 								
 							} else {
 
 								if(activeUser == lastMill) roundsWithoutMill++;
 								checkGameState();
-								c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-								c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+								c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+								c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 								activeUser = !activeUser;
 								
 									
@@ -275,26 +292,26 @@ public class Game implements Runnable {
 				
 				if(!activeUser) { //User with 3 Stones jumps
 					
-					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
-						field[dp.getToX()][dp.getToY()] == 0) {
+					if(	field[dp[2].getFromX()][dp[2].getFromY()] == (activeUser?1:2) &&
+						field[dp[2].getToX()][dp[2].getToY()] == 0) {
 						
-						field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
-						field[dp.getFromX()][dp.getFromY()] = 0;
+						field[dp[2].getToX()][dp[2].getToY()] = field[dp[2].getFromX()][dp[2].getFromY()];
+						field[dp[2].getFromX()][dp[2].getFromY()] = 0;
 							
-						if(checkMill(dp.getToX(), dp.getToY())) {
+						if(checkMill(dp[2].getToX(), dp[2].getToY())) {
 
 							tmpSTATE = STATE;	
 							STATE = GameState.MILL;
-							c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-							c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+							c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+							c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 							
 								
 						} else {
 
 							if(activeUser == lastMill) roundsWithoutMill++;
 							checkGameState();
-							c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-							c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+							c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+							c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 							activeUser = !activeUser;
 							
 								
@@ -309,27 +326,27 @@ public class Game implements Runnable {
 						
 				} else { // Other user moves normally
 						
-					if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
-						field[dp.getToX()][dp.getToY()] == 0) {
+					if(	field[dp[2].getFromX()][dp[2].getFromY()] == (activeUser?1:2) &&
+						field[dp[2].getToX()][dp[2].getToY()] == 0) {
 							
-						if(isNeighbor(dp.getFromX(), dp.getFromY(), dp.getToX(),dp.getToY())) {
+						if(isNeighbor(dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(),dp[2].getToY())) {
 								
-							field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
-							field[dp.getFromX()][dp.getFromY()] = 0;
+							field[dp[2].getToX()][dp[2].getToY()] = field[dp[2].getFromX()][dp[2].getFromY()];
+							field[dp[2].getFromX()][dp[2].getFromY()] = 0;
 								
-							if(checkMill(dp.getToX(), dp.getToY())) {
+							if(checkMill(dp[2].getToX(), dp[2].getToY())) {
 
 								tmpSTATE = STATE;
 								STATE = GameState.MILL;
-								c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-								c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+								c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+								c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 								
 								
 							} else {
 								
 								checkGameState();
-								c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-								c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+								c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+								c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 								activeUser = !activeUser;
 								
 									
@@ -352,24 +369,24 @@ public class Game implements Runnable {
 				
 			} else { // Both players are in Jump phase
 				
-				if(	field[dp.getFromX()][dp.getFromY()] == (activeUser?1:2) &&
-					field[dp.getToX()][dp.getToY()] == 0) {
+				if(	field[dp[2].getFromX()][dp[2].getFromY()] == (activeUser?1:2) &&
+					field[dp[2].getToX()][dp[2].getToY()] == 0) {
 							
-					field[dp.getToX()][dp.getToY()] = field[dp.getFromX()][dp.getFromY()];
-					field[dp.getFromX()][dp.getFromY()] = 0;
+					field[dp[2].getToX()][dp[2].getToY()] = field[dp[2].getFromX()][dp[2].getFromY()];
+					field[dp[2].getFromX()][dp[2].getFromY()] = 0;
 							
-					if(checkMill(dp.getToX(), dp.getToY())) {
+					if(checkMill(dp[2].getToX(), dp[2].getToY())) {
 
 						tmpSTATE = STATE;		
 						STATE = GameState.MILL;
-						c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-						c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+						c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+						c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYMILL.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 						
 								
 					} else {
 								
-						c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-						c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+						c[(activeUser?0:1)].sendData(new DataPackage(GameState.ALLOWED.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+						c[(!activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 						activeUser = !activeUser;
 						
 								
@@ -388,17 +405,17 @@ public class Game implements Runnable {
 		
 		if(STATE == GameState.MILL) {
 			
-			if(field[dp.getToX()][dp.getToY()] == (!activeUser?1:2)) {
+			if(field[dp[2].getToX()][dp[2].getToY()] == (!activeUser?1:2)) {
 
-				field[dp.getToX()][dp.getToY()] = 0;
+				field[dp[2].getToX()][dp[2].getToY()] = 0;
 				pc[(!activeUser?0:1)]--;
 				lastMill = activeUser;
 				roundsWithoutMill = 0;
 				checkForWin();
 				if(STATE != GameState.WIN) {
 					
-					c[(activeUser?0:1)].sendData(new DataPackage(GameState.MILL.id, 0, 0, dp.getToX(), dp.getToY()));
-					c[(!activeUser?0:1)].sendData(new DataPackage(GameState.MILL.id, 0, 0, dp.getToX(), dp.getToY()));
+					c[(activeUser?0:1)].sendData(new DataPackage(GameState.MILL.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
+					c[(!activeUser?0:1)].sendData(new DataPackage(GameState.MILL.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
 					
 					
 				}
@@ -442,14 +459,14 @@ public class Game implements Runnable {
 			
 		} else if(pc[(!activeUser?0:1)] < 3){
 			
-			c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 			STATE = GameState.WIN;
 			
 		} else if(pc[(activeUser?0:1)] < 3) {
 
-			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-			c[(activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 			STATE = GameState.WIN;
 			
 		}
@@ -494,12 +511,12 @@ public class Game implements Runnable {
 		if(f1 && f2) {
 			return true;
 		} else if(f1) {
-			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-			c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 			STATE = GameState.WIN;
 		}else if(f2) {
-			c[(activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 			STATE = GameState.WIN;
 		}
 		
@@ -522,8 +539,8 @@ public class Game implements Runnable {
 		if(roundsWithoutMill == 20) {
 			
 			STATE = GameState.STALEMATE;
-			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 		
 		}
 			
@@ -531,8 +548,8 @@ public class Game implements Runnable {
 		if(repetition/2 == 3) {
 			
 			STATE = GameState.STALEMATE;
-			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
-			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp.getFromX(), dp.getFromY(), dp.getToX(), dp.getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
+			c[(activeUser?0:1)].sendData(new DataPackage(STATE.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 			
 		}
 		
@@ -763,6 +780,21 @@ public class Game implements Runnable {
 		 *  1 - you start
 		 * 
 		 */
+		
+		rec[0] = new Thread(() -> {
+			
+			dp[0] = (DataPackage) c[0].receiveData();
+			if(dp[0] != null) dpdupe[0] = dp[0];
+			
+		});
+		
+		rec[1] = new Thread(() -> {
+			
+			dp[1] = (DataPackage) c[1].receiveData();
+			if(dp[1] != null) dpdupe[1] = dp[1];
+			
+		});
+		
 		c[0].sendData(new DataPackage(GameState.NEW.id, (color?0:1), (activeUser?0:1), 0, 0));
 		c[1].sendData(new DataPackage(GameState.NEW.id, (!color?0:1), (!activeUser?0:1), 0, 0));
 		c[0].sendData(new DataPackage(GameState.NEW.id, (color?0:1), (activeUser?0:1), 0, 0));
@@ -806,8 +838,31 @@ public class Game implements Runnable {
 	public void run() {
 		
 		reset();
-		while(true) {
+		while(STATE != GameState.END) {
 			tick();
+		}
+		
+		if(c[0].getLocation() == Location.GAME)
+			c[0].setLocation(Location.RETURN_TO_LOBBY);
+		if(c[1].getLocation() == Location.GAME)
+			c[1].setLocation(Location.RETURN_TO_LOBBY);
+		
+	}
+	
+	public void endGame() {
+		
+		STATE = GameState.END;
+		
+		if(c[0].getLocation() == Location.OFFLINE) {
+			
+			c[1].setLocation(Location.RETURN_TO_LOBBY);
+			c[1].sendData(new DataPackage(99, 0, 0, 0, 0));
+			
+		} else {
+			
+			c[0].setLocation(Location.RETURN_TO_LOBBY);
+			c[0].sendData(new DataPackage(99, 0, 0, 0, 0));
+			
 		}
 		
 	}
