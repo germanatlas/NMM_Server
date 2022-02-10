@@ -170,24 +170,36 @@ public class Manager {
 							} else if(lp.getStatus() == LobbyPackState.ACCEPT.id) {
 								
 								ClientManager nem = clientList.getClient(lp.getUser()[0]);
-								
-								String[] tmp = {cm.getUsername()};
-								nem.sendData(new LobbyPackage(tmp, LobbyPackState.ACCEPT.id));
 
 								cm.setLocation(Location.GAME);
 								nem.setLocation(Location.GAME);
 								
+								String[] tmp = {cm.getUsername()};
+								nem.sendData(new LobbyPackage(tmp, LobbyPackState.ACCEPT.id));
 								
-								threadList.remove(cm.getUsername());
-								threadList.remove(nem.getUsername());
-								
-								Game g = new Game(this, cm, nem);
-								Thread gt = new Thread(g);
-								gt.start();
-								gameList.newGame(cm.getUsername(), nem.getUsername(), g);
-								
-							} else if(lp.getStatus() == LobbyPackState.QUIT.id) {
-								//TODO
+								/*while(cm.getLocation() != Location.GAME) {
+									
+									LobbyPackage lpack = (LobbyPackage) nem.receiveData();
+									
+									if(lpack.getStatus() == LobbyPackState.ACK.id) {*/
+										
+										
+										
+										threadList.remove(cm.getUsername());
+										threadList.remove(nem.getUsername());
+										
+										Game g = new Game(this, cm, nem);
+										Thread gt = new Thread(g);
+										gt.start();
+										gameList.newGame(cm.getUsername(), nem.getUsername(), g);
+										
+									/*} else if(lpack.getStatus() == LobbyPackState.RESEND.id) {
+										
+										nem.sendData(new LobbyPackage(tmp, LobbyPackState.ACCEPT.id));
+										
+									}*/
+									
+								//}
 								
 							}
 							
@@ -258,11 +270,17 @@ public class Manager {
 					
 					print("Currently active users: " + out);
 					
-				} else if(args[0].equalsIgnoreCase("send")) {
+				} else if(args[0].equalsIgnoreCase("info")) {
 					
-					if(args[1] != null) {
+					for(ClientManager cm : clientList.getAllClients()) {
 						
-						clientList.getClient(args[1]).sendData(new DataPackage(0, 0, 0, 0, 0));
+						print(cm.getUsername() + "  " + cm.getLocation());
+						
+					}
+					
+					for(Game g : gameList.getAllGames()) {
+						
+						print(g.getClient(0).getUsername() + " vs " + g.getClient(1).getUsername() + "  " + g.getState());
 						
 					}
 					
@@ -401,7 +419,7 @@ public class Manager {
 						clientList.addUser(lp.getUsername(), c);
 						totalOnline++;
 
-						print(c.getUsername() + " joined the Server for the first time\tCount: " + totalOnline);
+						print(c.getUsername() + " joined the Server for the first time");
 						
 					} else {
 						
@@ -432,7 +450,7 @@ public class Manager {
 						clientList.addUser(lp.getUsername(), c);
 						totalOnline++;
 						
-						print(c.getUsername() + " joined the Server\tCount: " + totalOnline);
+						print(c.getUsername() + " joined the Server");
 						
 					}
 					
@@ -458,11 +476,13 @@ public class Manager {
 			if(cm.getLocation() == Location.OFFLINE) {
 				
 				print(cm.getUsername() + " left the Server");
+				totalOnline--;
 				if(gameList.getGame(cm.getUsername()) != null) {
 					gameList.getGame(cm.getUsername()).endGame();
 				}
 				gameList.removeGame(cm.getUsername());
 				clientList.removeUser(cm.getUsername());
+				threadList.remove(cm.getUsername());
 				
 			}
 			

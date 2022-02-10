@@ -17,7 +17,6 @@ public class ClientManager {
 	private Socket socket;
 	private BufferedInputStream in;
 	private BufferedOutputStream out;
-	private boolean active;
 	private String username;
 	@SuppressWarnings("unused")
 	private Manager man;
@@ -26,7 +25,6 @@ public class ClientManager {
 	public ClientManager(Manager man) {
 		
 		this.man = man;
-		active = false;
 		this.server = man.getServer();
 		this.socket = server.allowUser();
 		//man.print("Starting Streams...");
@@ -34,7 +32,6 @@ public class ClientManager {
 			in = new BufferedInputStream(socket.getInputStream());
 			out = new BufferedOutputStream(socket.getOutputStream());
 			LOCATION = Location.LOGIN;
-			active = true;
 			//man.print("Finished creating Socket");
 		} catch (IOException e) {
 			LOCATION = Location.OFFLINE;
@@ -81,7 +78,7 @@ public class ClientManager {
 				byte[] bytes = toBytes(o);
 				out.write(bytes);
 				out.flush();
-				//print(bytes.length + " Bytes Sent. " + dp.getStatus() + " " + dp.getFromX() + " " + dp.getFromY() + " " + dp.getToX() + " " + dp.getToY());
+				//man.print("Sending " + o.getClass() + " to " + username);
 				
 				return true;
 			} catch (IOException e) {
@@ -141,7 +138,6 @@ public class ClientManager {
 		try {
 			socket.close();
 			LOCATION = Location.OFFLINE;
-			active = false;
 		} catch (IOException e) {
 			//print("An Error occured while closing the Socket to Client.");
 		}
@@ -158,10 +154,6 @@ public class ClientManager {
 	
 	public Socket getSocket() {
 		return socket;
-	}
-	
-	public boolean getIfActive() {
-		return !socket.isClosed() && active;
 	}
 	
 	public void setUsername(String username) {

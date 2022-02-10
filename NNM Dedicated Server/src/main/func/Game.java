@@ -37,8 +37,7 @@ public class Game implements Runnable {
 	
 	private boolean color, activeUser,
 					lastMill,
-					newboard,
-					upd = false;
+					newboard;
 	
 	
 	public Game(Manager manager, ClientManager c1, ClientManager c2) {
@@ -46,7 +45,7 @@ public class Game implements Runnable {
 		this.man = manager;
 		c[0] = c1;
 		c[1] = c2;
-		man.print("New game between " + c[0].getUsername() + " & " + c[1].getUsername());
+		//man.print("New game between " + c[0].getUsername() + " & " + c[1].getUsername());
 		
 	}
 
@@ -88,11 +87,6 @@ public class Game implements Runnable {
 			rec[1].start();
 			
 		}
-
-		if(!upd) {
-			man.print("Waiting for " + c[(activeUser?0:1)].getUsername());
-			upd = true;
-		}
 		
 		if(dp[!activeUser?0:1] != null) {
 			
@@ -120,8 +114,6 @@ public class Game implements Runnable {
 			dp[activeUser?0:1] = null;
 			
 		} else return;
-		
-		upd = false;
 		
 		checkGameState();
 		
@@ -412,7 +404,7 @@ public class Game implements Runnable {
 				lastMill = activeUser;
 				roundsWithoutMill = 0;
 				checkForWin();
-				if(STATE != GameState.WIN) {
+				if(STATE != GameState.WIN && STATE != GameState.END) {
 					
 					c[(activeUser?0:1)].sendData(new DataPackage(GameState.MILL.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
 					c[(!activeUser?0:1)].sendData(new DataPackage(GameState.MILL.id, 0, 0, dp[2].getToX(), dp[2].getToY()));
@@ -422,7 +414,10 @@ public class Game implements Runnable {
 				
 				count++;
 				activeUser = !activeUser;
-				STATE = tmpSTATE;
+				if(STATE != GameState.END) {
+					STATE = tmpSTATE;
+				}
+				
 				
 			} else {
 				
@@ -455,19 +450,19 @@ public class Game implements Runnable {
 		
 		if(!checkForAllowedMoves()) {
 			
-			STATE = GameState.WIN;
+			STATE = GameState.END;
 			
 		} else if(pc[(!activeUser?0:1)] < 3){
 			
 			c[(activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
-			STATE = GameState.WIN;
+			STATE = GameState.END;
 			
 		} else if(pc[(activeUser?0:1)] < 3) {
 
 			c[(!activeUser?0:1)].sendData(new DataPackage(GameState.YOUWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
 			c[(activeUser?0:1)].sendData(new DataPackage(GameState.NMYWIN.id, dp[2].getFromX(), dp[2].getFromY(), dp[2].getToX(), dp[2].getToY()));
-			STATE = GameState.WIN;
+			STATE = GameState.END;
 			
 		}
 		
@@ -618,6 +613,7 @@ public class Game implements Runnable {
 		
 	}
 
+	@SuppressWarnings("unused")
 	private void printField() {
 		
 		String msg = "\n";

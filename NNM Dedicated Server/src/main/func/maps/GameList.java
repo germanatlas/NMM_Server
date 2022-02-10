@@ -112,7 +112,7 @@ private ConcurrentHashMap<String, Game> games;
 			
 		}
 		
-		return null;
+		return ret;
 	}
 
 	public Game[] getAllGames() {

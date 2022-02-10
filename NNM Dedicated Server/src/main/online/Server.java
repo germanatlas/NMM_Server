@@ -12,7 +12,7 @@ public class Server {
 	
 	public Server() {
 		
-		print("Starting Dedicated Server...");
+		print("Starting Server...");
 		port = 42069;
 		try {
 			
@@ -28,11 +28,9 @@ public class Server {
 	public Socket allowUser() {
 		
 		Socket s = null;
-		print("Waiting for User...");
 		
 		try {
 			s = server.accept();
-			print("User Connected.");
 		} catch (IOException e) {
 			print("An Error Occured while waiting for User.");
 		}
